@@ -9,7 +9,7 @@ class TreeBank(object):
         while idx < len(lines):
             blank_line = idx
             while lines[blank_line] != '':
-                idx += 1
+                blank_line += 1
 
             annotation = '\n'.join(lines[idx:blank_line])
             self.sentences.append(Sentence(annotation))
