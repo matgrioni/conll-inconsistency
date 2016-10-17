@@ -16,8 +16,28 @@ class TreeBank(object):
 
             idx = blank_line + 1
 
+    def pos_word_count(self, pos):
+        return self._field_word_count(lambda word: word.pos, pos)
+
+    def dep_word_count(self, dep):
+        return self._field_word_count(lambda word: word.dep, dep)
+
+    def _field_word_count(self, callback, field):
+        counts = {}
+
+        for sentence in self.sentences:
+            for word in sentence.words:
+                if callback(word) == field:
+                    try:
+                        counts[word.lemma] += 1
+                    except KeyError:
+                        counts[word.lemma] = 1
+
+        return counts
+
 class Sentence(object):
-    SENTENCE_ID_REGEX = '# sentid: fr-ud-[dev|train|test]_(\d+)'
+    COMMENT_MARKER = '#'
+    SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: fr-ud-[dev|train|test]_(\d+)'
 
     def __init__(self, annotation):
         self.words = []
@@ -29,7 +49,9 @@ class Sentence(object):
         else:
             self.id = -1
 
-        for line in lines[2:]:
+        lines = filter(lambda line: line[0] != Sentence.COMMENT_MARKER, lines)
+
+        for line in lines:
             self.words.append(Word(line))
 
 class Word(object):
