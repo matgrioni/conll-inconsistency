@@ -1,2 +1,5 @@
 *.pyc
 *.*.swp
+
+# Do not include file used for test scripts
+test.py
