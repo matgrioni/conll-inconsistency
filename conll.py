@@ -86,7 +86,7 @@ class Word(object):
 
         # TODO: Make features a dictionary
         self.index = fields[0]
-        self.text = fields[1]
+        self.phon = fields[1]
         self.lemma = fields[2]
         self.pos = fields[3]
         self.features = fields[4]
