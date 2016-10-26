@@ -58,19 +58,19 @@ class Sentence(object):
         for line in lines:
             self.words.append(Word(line))
 
-    def context_match(self, value, callback, left_lemma, right_lemma):
+    def context_match(self, value, left, right, callback, context_callback):
         for i, word in enumerate(self.words):
             if callback(word) == value:
                 matching = False
-                if i - 1 >= 0 and left_lemma:
-                    matching = left_lemma == self.words[i - 1].phon
+                if i - 1 >= 0 and left:
+                    matching = left == context_callback(self.words[i - 1])
                 else:
-                    matching = not(left_lemma) or (i - 1 < 0)
+                    matching = not(left) or (i - 1 < 0)
 
-                if i + 1 < len(self.words) and right_lemma:
-                    matching = matching and right_lemma == self.words[i + 1].phon
+                if i + 1 < len(self.words) and right:
+                    matching = matching and right == context_callback(self.words[i + 1])
                 else:
-                    matching = matching and (not(right_lemma) or (i + 1 >= len(self.words)))
+                    matching = matching and (not(right) or (i + 1 >= len(self.words)))
 
                 if matching:
                     return word
