@@ -1,0 +1,20 @@
+module confluent assemblee_propn {
+    rule r {
+        match {
+            N.phon = "Assemblée";
+            N [cat = PROPN];
+        }
+        commands {
+            N.lemma = "assemblée";
+            N.cat = NOUN;
+            N.Gender = Fem;
+            N.Number = Sing;
+        }
+    }
+}
+
+sequences {
+    main {
+        assemblee_propn
+    }
+}
