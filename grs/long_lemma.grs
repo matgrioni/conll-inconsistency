@@ -6,7 +6,7 @@ module confluent long_lemma {
             N.phon=re".?.?";
         }
         commands {
-            N.lemma = N.phon
+            N.lemma = N.phon;
         }
     }
 }
