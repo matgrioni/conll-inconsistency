@@ -1,0 +1,18 @@
+module confluent long_lemma {
+    rule r {
+        match {
+            N [cat <> VERB|AUX|ADJ];
+            N.lemma=re".......*";
+            N.phon=re".?.?";
+        }
+        commands {
+            N.lemma = N.phon
+        }
+    }
+}
+
+sequences {
+    main {
+        long_lemma
+    }
+}
