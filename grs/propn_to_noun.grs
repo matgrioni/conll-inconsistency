@@ -7,7 +7,7 @@ module confluent propn_to_noun {
         commands {
             N.cat = NOUN;
             N.lemma = @lemma;
-            N.gender = @gender;
+            N.Gender = @gender;
             N.Number = @num;
         }
     }
