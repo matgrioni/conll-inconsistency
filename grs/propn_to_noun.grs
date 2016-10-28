@@ -1,0 +1,34 @@
+module confluent propn_to_noun {
+    rule r(feature $phon, @lemma, @gender, @num) {
+        match {
+            N [cat=PROPN, phon=$phon];
+            N -[det]-> D;
+        }
+        commands {
+            N.cat = NOUN;
+            N.lemma = @lemma;
+            N.gender = @gender;
+            N.Number = @number;
+        }
+    }
+
+    #BEGIN
+
+    Académie##académie##Fem##Sing
+    Assemblée##assemblée##Fem##Sing
+    Région##région##Fem##Sing
+    Fédération##fédération##Fem##Sing
+    Maison##maison##Fem##Sing
+    Bataille##bataille##Fem##Sing
+    chanteuse##chanteuse##Fem##Sing
+    Vie##vie##Fem##Sing
+    Institut##institut##Masc##Sing
+
+    #END
+}
+
+sequences {
+    main {
+        propn_to_noun
+    }
+}
