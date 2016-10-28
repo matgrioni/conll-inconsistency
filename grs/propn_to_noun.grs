@@ -8,21 +8,21 @@ module confluent propn_to_noun {
             N.cat = NOUN;
             N.lemma = @lemma;
             N.gender = @gender;
-            N.Number = @number;
+            N.Number = @num;
         }
     }
 
     #BEGIN
 
-    Académie##académie##Fem##Sing
-    Assemblée##assemblée##Fem##Sing
-    Région##région##Fem##Sing
-    Fédération##fédération##Fem##Sing
-    Maison##maison##Fem##Sing
-    Bataille##bataille##Fem##Sing
-    chanteuse##chanteuse##Fem##Sing
-    Vie##vie##Fem##Sing
-    Institut##institut##Masc##Sing
+    Académie##académie#Fem#Sing
+    Assemblée##assemblée#Fem#Sing
+    Région##région#Fem#Sing
+    Fédération##fédération#Fem#Sing
+    Maison##maison#Fem#Sing
+    Bataille##bataille#Fem#Sing
+    chanteuse##chanteuse#Fem#Sing
+    Vie##vie#Fem#Sing
+    Institut##institut#Masc#Sing
 
     #END
 }
