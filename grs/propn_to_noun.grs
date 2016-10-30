@@ -18,11 +18,23 @@ module confluent propn_to_noun {
     Assemblée##assemblée#Fem#Sing
     Région##région#Fem#Sing
     Fédération##fédération#Fem#Sing
-    Maison##maison#Fem#Sing
     Bataille##bataille#Fem#Sing
     chanteuse##chanteuse#Fem#Sing
     Vie##vie#Fem#Sing
     Institut##institut#Masc#Sing
+    Conférence##conférence#Fem#Sing
+    Sénat##sénat#Masc#Sing
+    Université##université#Fem#Sing
+    Chambre##chambre#Fem#Sing
+    Proclamation##proclamation#Fem#Sing
+    Guerre##guerre#Fem#Sing
+    République##république#Fem#Sing
+    Révolution##révolution#Fem#Sing
+    Conseil##conseil#Masc#Sing
+    Cour##cour#Fem#Sing
+    Festival##festival#Masc#Sing
+    ministère##ministère#Masc#Sing
+    Convention##convention#Fem#Sing
 
     #END
 }
