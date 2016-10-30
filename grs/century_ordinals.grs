@@ -1,0 +1,19 @@
+module confluent century_ordinals {
+    rule r {
+        match {
+            N [cat = ADJ];
+            N.phon = re"^[XVI]+e$";
+            N.lemma = re".*ème";
+        }
+        commands {
+            N.lemma = N.phon;
+            N.NumType = Ord;
+        }
+    }
+}
+
+sequences {
+    main {
+        century_ordinals
+    }
+}
