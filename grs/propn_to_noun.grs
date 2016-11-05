@@ -35,6 +35,24 @@ module confluent propn_to_noun {
     Festival##festival#Masc#Sing
     ministère##ministère#Masc#Sing
     Convention##convention#Fem#Sing
+    Musée##musée#Masc#Sing
+    Château##château#Masc#Sing
+    Charte##charte#Fem#Sing
+    National##national#Masc#Sing
+    Union##union#Fem#Sing
+    Petit##Petit#Masc#Sing
+    Rue##rue#Fem#Sing
+    Commission##commission#Fem#Sing
+    Histoire##histoire#Fem#Sing
+    Coupe##coupe#Fem#Sing
+    Société##société#Fem#Sing
+    Fondation##fondation#Fem#Sing
+    Empire##empire#Masc#Sing
+    Monde##monde#Masc#Sing
+    Éducation##éducation#Fem#Sing
+    Organisation##organisation#Fem#Sing
+    Compagnie##compagnie#Fem#Sing
+    Commerce##commerce#Masc#Sing
 
     #END
 }
