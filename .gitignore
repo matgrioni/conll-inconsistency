@@ -2,7 +2,7 @@
 *.*.swp
 
 # Do not include file used for test scripts
-test.py
+test*.py
 
 # Do not include output file from grew
 *.conll*
