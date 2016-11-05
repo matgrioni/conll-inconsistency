@@ -1,5 +1,7 @@
 import re
 
+from tree import *
+
 class TreeBank(object):
     def __init__(self, treebank_str):
         self.sentences = []
@@ -16,29 +18,11 @@ class TreeBank(object):
 
             idx = blank_line + 1
 
-    def pos_word_count(self, pos):
-        return self._field_word_count(lambda word: word.pos, pos)
-
-    def dep_word_count(self, dep):
-        return self._field_word_count(lambda word: word.dep, dep)
-
-    def _field_word_count(self, callback, field):
-        counts = {}
-
-        for sentence in self.sentences:
-            for word in sentence.words:
-                if callback(word) == field:
-                    try:
-                        counts[word.lemma] += 1
-                    except KeyError:
-                        counts[word.lemma] = 1
-
-        return counts
-
 class Sentence(object):
     COMMENT_MARKER = '#'
     SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: fr-ud-(dev|train|test)_(\d+)'
     CONTRACTION_REGEX = '^\d+-\d+'
+    SENTENCE_TEXT_START = 17
 
     def __init__(self, annotation):
         self.words = []
@@ -50,13 +34,37 @@ class Sentence(object):
         else:
             self.id = -1
 
-        self.text = lines[1][17:]
+        self.text = lines[1][Sentence.SENTENCE_TEXT_START:]
 
-        lines = filter(lambda line: line[0] != Sentence.COMMENT_MARKER and not(re.match(Sentence.CONTRACTION_REGEX, line)),
-                       lines)
+        lines = filter(self._is_word_line, lines)
 
         for line in lines:
             self.words.append(Word(line))
+
+        # Construct the sentence tree here.
+        self._create_tree()
+
+    def _is_word_line(self, line):
+        return line[0] != Sentence.COMMENT_MARKER and not(re.match(Sentence.CONTRACTION_REGEX, line))
+
+    def _create_tree(self):
+        for word in self.words:
+            if word.dep_index == 0:
+                self.tree = Tree(word)
+                self._create_tree_helper(self.tree, word.index)
+                break
+
+    def _create_tree_helper(self, tree, dep_index):
+        child_words = filter(lambda word: word.dep_index == dep_index, self.words)
+
+        for word in child_words:
+            t = Tree(word)
+            self._create_tree_helper(t, word.index)
+            tree.add_children(t)
+
+    def dep(self, word):
+        word_index = self.words.index(word)
+        return self.words[self.words[word_index].dep_index - 1]
 
     def context_match(self, value, left, right, callback, context_callback):
         for i, word in enumerate(self.words):
@@ -84,11 +92,16 @@ class Word(object):
     def __init__(self, annotation):
         fields = annotation.split(Word.FIELD_DELIMITER)
 
-        # TODO: Make features a dictionary
-        self.index = fields[0]
+        self.index = int(fields[0])
         self.phon = fields[1]
         self.lemma = fields[2]
         self.pos = fields[3]
         self.features = fields[4]
-        self.dep_index = fields[6]
+        self.dep_index = int(fields[6])
         self.dep = fields[7]
+
+    def __str__(self):
+        return self.phon
+
+    def __repr__(self):
+        return self.phon
