@@ -18,6 +18,10 @@ class TreeBank(object):
 
             idx = blank_line + 1
 
+    def __iter__(self):
+        for sentence in self.sentences:
+            yield sentence
+
 class Sentence(object):
     COMMENT_MARKER = '#'
     SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: fr-ud-(dev|train|test)_(\d+)'
