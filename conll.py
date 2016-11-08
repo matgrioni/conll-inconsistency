@@ -22,6 +22,9 @@ class TreeBank(object):
         for sentence in self.sentences:
             yield sentence
 
+    def __getitem__(self, key):
+        return self.sentences[key]
+
 class Sentence(object):
     COMMENT_MARKER = '#'
     SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: fr-ud-(dev|train|test)_(\d+)'
