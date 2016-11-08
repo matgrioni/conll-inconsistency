@@ -11,18 +11,18 @@ class Tree(object):
 
     # Returns the subtrees whose root nodes equal the provided node.
     # If there are no such trees than an empty list is returned.
-    def find_trees_by_node(self, node):
+    def find_trees_by_node(self, callback, expected):
         trees = []
 
-        if self.node == node:
+        if callback(self.node) == expected:
             trees.append(self)
         else:
-            for child in children:
-                child_matches = child.find_trees_by_node(node)
+            for child in self.children:
+                child_matches = child.find_trees_by_node(callback, expected)
                 if child_matches:
                     trees += child_matches
 
-        return tree
+        return trees
 
     # Checks if the given node is in the tree and returns a boolean
     # response. To be used with `in` operator.
