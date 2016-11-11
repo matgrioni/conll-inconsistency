@@ -92,6 +92,9 @@ class Sentence(object):
 
         return None
 
+    def __getitem__(self, key):
+        return self.words[key]
+
 class Word(object):
     FIELD_DELIMITER = '\t'
     FEATURE_DELIMITER = '|'
