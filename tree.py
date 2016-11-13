@@ -1,3 +1,5 @@
+from itertools import chain, imap
+
 class Tree(object):
     def __init__(self, node):
         self.node = node
@@ -36,6 +38,12 @@ class Tree(object):
                     break
 
         return contains
+
+    def __iter__(self):
+        yield self
+        # TODO: Look into how this works
+        for child in chain(*imap(iter, self.children)):
+            yield child
 
     def size(self):
         s = 0
