@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# coding: utf-8
+
 ######################################################################
 #
 # Algorithm that implements the consistency validations in dependency
@@ -8,48 +11,102 @@
 #
 ######################################################################
 
+from collections import defaultdict, namedtuple
 import sys
 
 from conll import *
+
+# Define constants that will be used in the script. Among them being
+# the direction of the relation and the different command line
+# options for heuristics.
+DEPENDENCY_CONTEXT = ("-d", "-dependency")
 
 LEFT = "L"
 RIGHT = "R"
 NIL = "NIL"
 
-# Finds all direct dependencies. Essentially goes through all nodes
-# and combines them and their children each into a 2-tuple then creates
-# and returns the Relation objects formed from that.
-def find_relations(tree):
-    relations = []
+ContextVariation = namedtuple('ContextVariation', ['internal_ctx', 'external_ctx', 'head_dep', 'sent_id'])
+Error = namedtuple('Error', ['lemmas', 'dependency1', 'dependency2', 'sent_id1', 'sent_id2'])
 
-    for child in tree.children:
-        direction = LEFT if tree.node.index < child.node.index else RIGHT
-        relations.append((direction, tree.node, child.node))
+# Finds all direct dependencies. Essentially goes through all nodes in
+# the tree and combines the root and each child into 2-tuples. The
+# tuples are composed of the lemmas of the nodes.
+def find_relations(sentence, relations):
+    for child in sentence.tree:
+        if child.parent is not None:
+            tree = child.parent
+            related_lemmas = frozenset((tree.node.lemma, child.node.lemma))
 
-        relations += find_relations(child)
+            internal_ctx = calc_internal_context(sentence, tree.node, child.node)
 
-    return relations
+            direction = LEFT if tree.node.index < child.node.index else RIGHT
+
+            if direction == LEFT:
+                external_ctx = calc_external_context(sentence, tree.node, child.node)
+            else:
+                external_ctx = calc_external_context(sentence, child.node, tree.node)
+            context = ContextVariation(internal_ctx, external_ctx, tree.node.dep, sentence.id)
+
+            # TODO: Comment this or actually make it readable
+            relations[related_lemmas][(direction, child.node.dep)].append(context)
 
 # Find if there exist any NIL dependencies in the tree that match the
 # dependencies provided.
-def find_nils(tree, relations):
-    nils = []
+def find_nils(sentence, relations):
+    nil_relation = (NIL, NIL)
 
-    for relation in relations:
-        # Matches is the list of all subtrees in tree that have the
-        # root node with value relation[1], which is the head of the
-        # relation.
-        matches = tree.find_trees_by_node(lambda node: node.lemma, relation[1])
+    for i, word1 in enumerate(sentence):
+        for word2 in sentence[i+1:]:
+            # The two words are not related
+            if word1.dep_index != word2.index and word2.dep_index != word1.index:
+                nil_lemmas = frozenset((word1.lemma, word2.lemma))
+                # nil_lemmas_rev = (word2.lemma, word1.lemma)
 
-        for match in matches:
-            children_nodes = map(lambda child: child.node.lemma, match.children)
-            if relation[2] not in children_nodes:
-                nils.append(relation)
+                internal_ctx = calc_internal_context(sentence, word1, word2)
+                external_ctx = calc_external_context(sentence, word1, word2)
+                # external_ctx_rev = calc_external_context(sentence, word2, word1)
+                context = ContextVariation(internal_ctx, external_ctx, NIL, sentence.id)
+                # context_rev = ContextVariation(internal_ctx, external_ctx_rev, NIL, sentence.id)
 
-    return nils
+                if nil_lemmas in relations:
+                    relations[nil_lemmas][nil_relation].append(context)
+
+                #if nil_lemmas_rev in relations:
+                    #relations[nil_lemmas_rev][nil_relation].append(context_rev)
+
+# Get the external context of the two words in the given sentence as a
+# binary tuple of lemmas. The two words should be in the sentence and
+# word1 appears before word2 in the sentence.
+def calc_external_context(sentence, word1, word2):
+    ctx_index1 = word1.index - 2
+    ctx_index2 = word2.index
+
+    if ctx_index1 < len(sentence) and ctx_index1 > -1:
+        ctx1 = sentence[ctx_index1].lemma
+    else:
+        ctx1 = None
+
+    if ctx_index2 < len(sentence) and ctx_index2 > -1:
+        ctx2 = sentence[ctx_index2].lemma
+    else:
+        ctx2 = None
+
+    return (ctx1, ctx2)
+
+def calc_internal_context(sentence, word1, word2):
+    words = sentence[word1.index : word2.index - 1] or sentence[word2.index : word1.index - 1]
+    return map(lambda word: word.lemma, words)
+
+######################################################################
+#
+# Main script
+#
+######################################################################
 
 if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided')
+
+dep_heuristic = reduce(lambda acc, option: acc or option in sys.argv, DEPENDENCY_CONTEXT, False)
 
 filename = sys.argv[1]
 with open(filename) as f:
@@ -57,21 +114,59 @@ with open(filename) as f:
 
 # Find all relations in the treebank and then consolidate the ones
 # with identical types but different labels.
-relations = {}
+# TODO: Explain why defaultdict
+relations = defaultdict(lambda: defaultdict(list))
 for sentence in treebank:
-    s_relations = find_relations(sentence.tree)
-    for relation in s_relations:
-        simp_relation = (relation[0], relation[1].lemma, relation[2].lemma)
-        try:
-            relations[simp_relation].add(relation[2].dep)
-        except KeyError:
-            relations[simp_relation] = { relation[2].dep }
-"""
-nils = reduce(lambda acc, sentence: acc + find_nils(sentence.tree, relations.keys()), treebank.sentences, [])
-for nil in nils:
-    relations[nil].add(NIL)
-"""
+    find_relations(sentence, relations)
 
-for key, value in relations.iteritems():
-    if len(value) > 1:
-        print str(key) + ", " + str(value)
+for sentence in treebank:
+    find_nils(sentence, relations)
+
+nil_errors = []
+external_ctx_errors = []
+
+for related_lemmas, lemma_variations in relations.items():
+    # First check for NIL errors. This is where for a pair of lemmas
+    # they appear as NIL in one situation and as related in another
+    # and they have the same internal context in both occurences.
+    nil_variations = lemma_variations[(NIL, NIL)]
+    for nil_variation in nil_variations:
+        for dep, variations in lemma_variations.items():
+            if dep != (NIL, NIL):
+                for variation in variations:
+                    if variation.internal_ctx == nil_variation.internal_ctx:
+                        nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.sent_id, variation.sent_id))
+
+    # Then check for errors using the non-fringe heuristic. This
+    # checks between non-NIL relations. If the external contexts
+    # of the words are the same then there is most likely an
+    # inconsistency.
+    deps = lemma_variations.keys()
+    for i, dep1 in enumerate(deps):
+        for dep2 in deps[i + 1:]:
+            if dep1 != (NIL, NIL) and dep2 != (NIL, NIL):
+                for variation1 in lemma_variations[dep1]:
+                    for variation2 in lemma_variations[dep2]:
+                        if variation1.external_ctx == variation2.external_ctx:
+                            # Lastly, is the check for head dependencies which is on top of the external context.
+                            if dep_heuristic and variation1.head_dep == variation2.head_dep:
+                                external_ctx_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
+                            elif not dep_heuristic:
+                                external_ctx_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
+
+# Print out the error results
+print ('----------------------  NIL Errors  ----------------------')
+for error in nil_errors:
+    print ', '.join(error.lemmas)
+    dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
+    print '\t{} in {}'.format(dep1, error.sent_id1)
+    print '\t{} in {}'.format(dep2, error.sent_id2)
+
+print '\n'
+    
+print ('----------------------\tExternal Context Errors\t----------------------')
+for error in external_ctx_errors:
+    print ', '.join(error.lemmas)
+    dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
+    print '\t{} in {}'.format(dep1, error.sent_id1)
+    print '\t{} in {}'.format(dep2, error.sent_id2)
