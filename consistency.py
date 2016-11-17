@@ -27,8 +27,8 @@ LEFT = "L"
 RIGHT = "R"
 NIL = "NIL"
 
-ContextVariation = namedtuple('ContextVariation', ['internal_ctx', 'external_ctx', 'head_dep', 'sent_id'])
-Error = namedtuple('Error', ['lemmas', 'dependency1', 'dependency2', 'sent_id1', 'sent_id2'])
+ContextVariation = namedtuple('ContextVariation', ['internal_ctx', 'external_ctx', 'head_dep', 'index', 'sent_id'])
+Error = namedtuple('Error', ['lemmas', 'dependency1', 'dependency2', 'index1', 'index2', 'sent_id1', 'sent_id2'])
 
 # Find if there exist any NIL dependencies in the tree that match the
 # dependencies provided.
@@ -46,7 +46,9 @@ def find_relations(sentence, relations):
 
                 internal_ctx = calc_internal_context(sentence, word1, word2)
                 external_ctx = calc_external_context(sentence, word1, word2)
-                context = ContextVariation(internal_ctx, external_ctx, NIL, sentence.id)
+
+                first_index = min(word1.index, word2.index)
+                context = ContextVariation(internal_ctx, external_ctx, NIL, first_index, sentence.id)
 
                 relations[nil_lemmas][nil_relation].append(context)
             else:
@@ -65,7 +67,9 @@ def find_relations(sentence, relations):
                     external_ctx = calc_external_context(sentence, head, child)
                 else:
                     external_ctx = calc_external_context(sentence, child, head)
-                context = ContextVariation(internal_ctx, external_ctx, head.dep, sentence.id)
+
+                first_index = min(head.index, child.index)
+                context = ContextVariation(internal_ctx, external_ctx, head.dep, first_index, sentence.id)
 
                 # TODO: Comment this or actually make it readable
                 relations[related_lemmas][(direction, child.dep)].append(context)
@@ -134,9 +138,9 @@ for related_lemmas, lemma_variations in relations.items():
                         # Otherwise, simply add the NIL error to the list.
                         if internal_ctx_pres:
                             if variation.internal_ctx:
-                                nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.sent_id, variation.sent_id))
+                                nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.index, variation.index, nil_variation.sent_id, variation.sent_id))
                         else:
-                            nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.sent_id, variation.sent_id))
+                            nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.index, variation.index, nil_variation.sent_id, variation.sent_id))
 
     # Then check for errors using the non-fringe heuristic. This
     # checks between non-NIL relations. If the external contexts
@@ -152,17 +156,17 @@ for related_lemmas, lemma_variations in relations.items():
                             # Lastly, is the check for head dependencies which is on top of the external context.
                             if dep_heuristic:
                                 if variation1.head_dep == variation2.head_dep:
-                                    context_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
+                                    context_errors.append(Error(related_lemmas, dep1, dep2, variation1.index, variation2.index, variation1.sent_id, variation2.sent_id))
                             else:
-                                context_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
+                                context_errors.append(Error(related_lemmas, dep1, dep2, variation1.index, variation2.index, variation1.sent_id, variation2.sent_id))
 
 # Print out the error results
 print '----------------------  NIL Errors  ----------------------'
 for error in nil_errors:
     print ', '.join(error.lemmas)
     dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
-    print '\t{} in {}, {}'.format(dep1, error.sent_id1[0], error.sent_id1[1])
-    print '\t{} in {}, {}'.format(dep2, error.sent_id2[0], error.sent_id2[1])
+    print '\t{} in {}, {}#{}'.format(dep1, error.sent_id1[0], error.sent_id1[1], error.index1)
+    print '\t{} in {}, {}#{}'.format(dep2, error.sent_id2[0], error.sent_id2[1], error.index2)
 
 print
     
@@ -170,8 +174,8 @@ print '----------------------    Context Errors    ----------------------'
 for error in context_errors:
     print ', '.join(error.lemmas)
     dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
-    print '\t{} in {}, {}'.format(dep1, error.sent_id1[0], error.sent_id1[1])
-    print '\t{} in {}, {}'.format(dep2, error.sent_id2[0], error.sent_id2[1])
+    print '\t{} in {}, {}#{}'.format(dep1, error.sent_id1[0], error.sent_id1[1], error.index1)
+    print '\t{} in {}, {}#{}'.format(dep2, error.sent_id2[0], error.sent_id2[1], error.index2)
 
 print
 
