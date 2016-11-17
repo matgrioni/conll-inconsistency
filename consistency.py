@@ -18,8 +18,10 @@ from conll import *
 
 # Define constants that will be used in the script. Among them being
 # the direction of the relation and the different command line
-# options for heuristics.
-DEPENDENCY_CONTEXT = ("-d", "-dependency")
+# options for heuristics. Another is if the internal context must be
+# present for NIL to non-NIL comparisons.
+DEPENDENCY_CONTEXT = ('-d', '-dependency')
+INTERNAL_CONTEXT = ('-i', '-internal')
 
 LEFT = "L"
 RIGHT = "R"
@@ -107,6 +109,7 @@ if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided')
 
 dep_heuristic = reduce(lambda acc, option: acc or option in sys.argv, DEPENDENCY_CONTEXT, False)
+internal_ctx_pres = reduce(lambda acc, option: acc or option in sys.argv, INTERNAL_CONTEXT, False)
 
 filename = sys.argv[1]
 with open(filename) as f:
@@ -123,7 +126,7 @@ for sentence in treebank:
     find_nils(sentence, relations)
 
 nil_errors = []
-external_ctx_errors = []
+context_errors = []
 
 for related_lemmas, lemma_variations in relations.items():
     # First check for NIL errors. This is where for a pair of lemmas
@@ -135,7 +138,14 @@ for related_lemmas, lemma_variations in relations.items():
             if dep != (NIL, NIL):
                 for variation in variations:
                     if variation.internal_ctx == nil_variation.internal_ctx:
-                        nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.sent_id, variation.sent_id))
+                        # If the internal context needs to be present
+                        # then check if it is before adding a new error.
+                        # Otherwise, simply add the NIL error to the list.
+                        if internal_ctx_pres:
+                            if variation.internal_ctx:
+                                nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.sent_id, variation.sent_id))
+                        else:
+                            nil_errors.append(Error(related_lemmas, (NIL, NIL), dep, nil_variation.sent_id, variation.sent_id))
 
     # Then check for errors using the non-fringe heuristic. This
     # checks between non-NIL relations. If the external contexts
@@ -149,24 +159,30 @@ for related_lemmas, lemma_variations in relations.items():
                     for variation2 in lemma_variations[dep2]:
                         if variation1.external_ctx == variation2.external_ctx:
                             # Lastly, is the check for head dependencies which is on top of the external context.
-                            if dep_heuristic and variation1.head_dep == variation2.head_dep:
-                                external_ctx_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
-                            elif not dep_heuristic:
-                                external_ctx_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
+                            if dep_heuristic:
+                                if variation1.head_dep == variation2.head_dep:
+                                    context_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
+                            else:
+                                context_errors.append(Error(related_lemmas, dep1, dep2, variation1.sent_id, variation2.sent_id))
 
 # Print out the error results
-print ('----------------------  NIL Errors  ----------------------')
+print '----------------------  NIL Errors  ----------------------'
 for error in nil_errors:
     print ', '.join(error.lemmas)
     dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
     print '\t{} in {}'.format(dep1, error.sent_id1)
     print '\t{} in {}'.format(dep2, error.sent_id2)
 
-print '\n'
+print
     
-print ('----------------------\tExternal Context Errors\t----------------------')
-for error in external_ctx_errors:
+print '----------------------    Context Errors    ----------------------'
+for error in context_errors:
     print ', '.join(error.lemmas)
     dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
     print '\t{} in {}'.format(dep1, error.sent_id1)
     print '\t{} in {}'.format(dep2, error.sent_id2)
+
+print
+
+print '# of NIL errors: {}'.format(len(nil_errors))
+print '# of context errors: {}'.format(len(context_errors))
