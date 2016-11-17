@@ -37,9 +37,9 @@ class Sentence(object):
 
         id_match = re.match(Sentence.SENTENCE_ID_REGEX, lines[0])
         if id_match:
-            self.id = id_match.group(2)
+            self.id = (id_match.group(1), id_match.group(2))
         else:
-            self.id = -1
+            self.id = (None, -1)
 
         self.text = lines[1][Sentence.SENTENCE_TEXT_START:]
 

@@ -161,8 +161,8 @@ print '----------------------  NIL Errors  ----------------------'
 for error in nil_errors:
     print ', '.join(error.lemmas)
     dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
-    print '\t{} in {}'.format(dep1, error.sent_id1)
-    print '\t{} in {}'.format(dep2, error.sent_id2)
+    print '\t{} in {}, {}'.format(dep1, error.sent_id1[0], error.sent_id1[1])
+    print '\t{} in {}, {}'.format(dep2, error.sent_id2[0], error.sent_id2[1])
 
 print
     
@@ -170,8 +170,8 @@ print '----------------------    Context Errors    ----------------------'
 for error in context_errors:
     print ', '.join(error.lemmas)
     dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
-    print '\t{} in {}'.format(dep1, error.sent_id1)
-    print '\t{} in {}'.format(dep2, error.sent_id2)
+    print '\t{} in {}, {}'.format(dep1, error.sent_id1[0], error.sent_id1[1])
+    print '\t{} in {}, {}'.format(dep2, error.sent_id2[0], error.sent_id2[1])
 
 print
 
