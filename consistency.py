@@ -30,31 +30,12 @@ NIL = "NIL"
 ContextVariation = namedtuple('ContextVariation', ['internal_ctx', 'external_ctx', 'head_dep', 'sent_id'])
 Error = namedtuple('Error', ['lemmas', 'dependency1', 'dependency2', 'sent_id1', 'sent_id2'])
 
+# Find if there exist any NIL dependencies in the tree that match the
+# dependencies provided.
 # Finds all direct dependencies. Essentially goes through all nodes in
 # the tree and combines the root and each child into 2-tuples. The
 # tuples are composed of the lemmas of the nodes.
 def find_relations(sentence, relations):
-    for child in sentence.tree:
-        if child.parent is not None:
-            tree = child.parent
-            related_lemmas = frozenset((tree.node.lemma, child.node.lemma))
-
-            internal_ctx = calc_internal_context(sentence, tree.node, child.node)
-
-            direction = LEFT if tree.node.index < child.node.index else RIGHT
-
-            if direction == LEFT:
-                external_ctx = calc_external_context(sentence, tree.node, child.node)
-            else:
-                external_ctx = calc_external_context(sentence, child.node, tree.node)
-            context = ContextVariation(internal_ctx, external_ctx, tree.node.dep, sentence.id)
-
-            # TODO: Comment this or actually make it readable
-            relations[related_lemmas][(direction, child.node.dep)].append(context)
-
-# Find if there exist any NIL dependencies in the tree that match the
-# dependencies provided.
-def find_nils(sentence, relations):
     nil_relation = (NIL, NIL)
 
     for i, word1 in enumerate(sentence):
@@ -62,19 +43,32 @@ def find_nils(sentence, relations):
             # The two words are not related
             if word1.dep_index != word2.index and word2.dep_index != word1.index:
                 nil_lemmas = frozenset((word1.lemma, word2.lemma))
-                # nil_lemmas_rev = (word2.lemma, word1.lemma)
 
                 internal_ctx = calc_internal_context(sentence, word1, word2)
                 external_ctx = calc_external_context(sentence, word1, word2)
-                # external_ctx_rev = calc_external_context(sentence, word2, word1)
                 context = ContextVariation(internal_ctx, external_ctx, NIL, sentence.id)
-                # context_rev = ContextVariation(internal_ctx, external_ctx_rev, NIL, sentence.id)
 
-                if nil_lemmas in relations:
-                    relations[nil_lemmas][nil_relation].append(context)
+                relations[nil_lemmas][nil_relation].append(context)
+            else:
+                if word1.dep_index == word2.index:
+                    head = word2
+                    child = word1
+                elif word2.dep_index == word1.index:
+                    head = word1
+                    child = word2
+                related_lemmas = frozenset((head.lemma, child.lemma))
 
-                #if nil_lemmas_rev in relations:
-                    #relations[nil_lemmas_rev][nil_relation].append(context_rev)
+                internal_ctx = calc_internal_context(sentence, head, child)
+
+                direction = LEFT if head.index < child.index else RIGHT
+                if direction == LEFT:
+                    external_ctx = calc_external_context(sentence, head, child)
+                else:
+                    external_ctx = calc_external_context(sentence, child, head)
+                context = ContextVariation(internal_ctx, external_ctx, head.dep, sentence.id)
+
+                # TODO: Comment this or actually make it readable
+                relations[related_lemmas][(direction, child.dep)].append(context)
 
 # Get the external context of the two words in the given sentence as a
 # binary tuple of lemmas. The two words should be in the sentence and
@@ -121,9 +115,6 @@ with open(filename) as f:
 relations = defaultdict(lambda: defaultdict(list))
 for sentence in treebank:
     find_relations(sentence, relations)
-
-for sentence in treebank:
-    find_nils(sentence, relations)
 
 nil_errors = []
 context_errors = []
