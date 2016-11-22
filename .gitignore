@@ -1,8 +1,8 @@
 *.pyc
 *.*.swp
 
-# Do not include file used for test scripts
-test*.py
+# Do not include files used for testing
+test/*
 
 # Do not include output file from grew
 *.conll*
