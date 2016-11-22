@@ -41,12 +41,17 @@ class Sentence(object):
         else:
             self.id = (None, -1)
 
-        self.text = lines[1][Sentence.SENTENCE_TEXT_START:]
-
         lines = filter(self._is_word_line, lines)
 
         for line in lines:
             self.words.append(Word(line))
+
+        # This is to handle the cases where the format is different
+        # from the French corpus. TODO.
+        try:
+            self.text = lines[1][Sentence.SENTENCE_TEXT_START:]
+        except:
+            self.text = ""
 
         # Construct the sentence tree here.
         self._create_tree()
