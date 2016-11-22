@@ -82,19 +82,20 @@ internal_ctx_pres = reduce(lambda acc, option: acc or option in sys.argv, INTERN
 # TODO: Explain why defaultdict
 filename = sys.argv[1]
 relations = defaultdict(lambda: defaultdict(list))
-with open(filename) as f:
+with open(filename, 'r') as f:
     lines = []
     sent_start = -1
     for l, line in enumerate(f):
-        if line:
-            if line[0] != "#":
+        stripped = line.strip()
+        if stripped:
+            if stripped[0] != "#":
                 if sent_start < 0:
                     sent_start = l
-                lines.append(line)
+                lines.append(stripped)
         else:
             sentence = Sentence("\n".join(lines))
             for i, word1 in enumerate(sentence):
-                for word2 in lines[i+1:]:
+                for word2 in sentence[i+1:]:
                     # The two words are not related
                     if word1.dep_index != word2.index and word2.dep_index != word1.index:
                         nil_lemmas = frozenset((word1.lemma, word2.lemma))
@@ -103,9 +104,10 @@ with open(filename) as f:
                         external_ctx = calc_external_context(sentence, word1, word2)
 
                         first_index = min(word1.index, word2.index)
-                        context = ContextVariation(internal_ctx, external_ctx, NIL, sent_start +  word1.index - 1)
+                        context = ContextVariation(internal_ctx, external_ctx, NIL, sent_start +  word1.index)
 
-                        relations[nil_lemmas][NIL_RELATION].append(context)
+                        if (internal_ctx_pres and internal_ctx) or not internal_ctx_pres:
+                            relations[nil_lemmas][NIL_RELATION].append(context)
                     else:
                         if word1.dep_index == word2.index:
                             head = word2
@@ -117,21 +119,20 @@ with open(filename) as f:
 
                         internal_ctx = calc_internal_context(sentence, head, child)
 
-                        if (internal_ctx_present and internal_ctx) or not internal_ctx_present:
-                            direction = LEFT if head.index < child.index else RIGHT
-                            if direction == LEFT:
-                                external_ctx = calc_external_context(sentence, head, child)
-                            else:
-                                external_ctx = calc_external_context(sentence, child, head)
+                        direction = LEFT if head.index < child.index else RIGHT
+                        if direction == LEFT:
+                            external_ctx = calc_external_context(sentence, head, child)
+                        else:
+                            external_ctx = calc_external_context(sentence, child, head)
 
                             first_index = min(head.index, child.index)
-                            context = ContextVariation(internal_ctx, external_ctx, head.dep, sent_start + word1.index - 1)
+                            context = ContextVariation(internal_ctx, external_ctx, head.dep, sent_start + word1.index)
 
                             # TODO: Comment this or actually make it readable
                             relations[related_lemmas][(direction, child.dep)].append(context)
 
             sent_start = -1
-            del line[:]
+            del lines[:]
 
 nil_errors = defaultdict(list)
 context_errors = defaultdict(list)
