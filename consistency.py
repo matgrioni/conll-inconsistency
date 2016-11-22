@@ -96,17 +96,17 @@ with open(filename, 'r') as f:
             sentence = Sentence("\n".join(lines))
             for i, word1 in enumerate(sentence):
                 for word2 in sentence[i+1:]:
-                    # The two words are not related
+                    # The two words are not related.
                     if word1.dep_index != word2.index and word2.dep_index != word1.index:
                         nil_lemmas = frozenset((word1.lemma, word2.lemma))
 
                         internal_ctx = calc_internal_context(sentence, word1, word2)
-                        external_ctx = calc_external_context(sentence, word1, word2)
-
-                        first_index = min(word1.index, word2.index)
-                        context = ContextVariation(internal_ctx, external_ctx, NIL, sent_start +  word1.index)
-
                         if (internal_ctx_pres and internal_ctx) or not internal_ctx_pres:
+                            external_ctx = calc_external_context(sentence, word1, word2)
+
+                            first_index = min(word1.index, word2.index)
+                            context = ContextVariation(internal_ctx, external_ctx, NIL, sent_start +  word1.index)
+
                             relations[nil_lemmas][NIL_RELATION].append(context)
                     else:
                         if word1.dep_index == word2.index:
@@ -125,11 +125,11 @@ with open(filename, 'r') as f:
                         else:
                             external_ctx = calc_external_context(sentence, child, head)
 
-                            first_index = min(head.index, child.index)
-                            context = ContextVariation(internal_ctx, external_ctx, head.dep, sent_start + word1.index)
+                        first_index = min(head.index, child.index)
+                        context = ContextVariation(internal_ctx, external_ctx, head.dep, sent_start + word1.index)
 
-                            # TODO: Comment this or actually make it readable
-                            relations[related_lemmas][(direction, child.dep)].append(context)
+                        # TODO: Comment this or actually make it readable
+                        relations[related_lemmas][(direction, child.dep)].append(context)
 
             sent_start = -1
             del lines[:]
