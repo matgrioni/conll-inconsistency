@@ -107,7 +107,8 @@ with open(filename, 'r') as f:
                             first_index = min(word1.index, word2.index)
                             context = ContextVariation(internal_ctx, external_ctx, NIL, sent_start +  word1.index)
 
-                            relations[nil_lemmas][NIL_RELATION].append(context)
+                            if child.dep not in ("mwe", "conj"):
+                                relations[nil_lemmas][NIL_RELATION].append(context)
                     else:
                         if word1.dep_index == word2.index:
                             head = word2
@@ -129,7 +130,8 @@ with open(filename, 'r') as f:
                         context = ContextVariation(internal_ctx, external_ctx, head.dep, sent_start + word1.index)
 
                         # TODO: Comment this or actually make it readable
-                        relations[related_lemmas][(direction, child.dep)].append(context)
+                        if child.dep not in ("mwe", "conj"):
+                            relations[related_lemmas][(direction, child.dep)].append(context)
 
             sent_start = -1
             del lines[:]
