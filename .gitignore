@@ -6,3 +6,7 @@ test/*
 
 # Do not include output file from grew
 *.conll*
+
+# Ignore the virtualenv folders
+include/
+venv/
