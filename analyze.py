@@ -29,14 +29,15 @@ VariationCount = recordclass('VariationCount', ['yes', 'no', 'unsure', 'unmarked
 if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided')
 
-# The structure of the variations dictionary is so that each key is a
-# different header from the input file, such as 'Nil Context Errors'.
-# Each value is then again a dictionary of the lemmas that make up the
-# variation nuclei under the given header. The value for each set of
-# lemmas is a 3-namedtuple where the first element is the number of
-# actual inconsistencies, the second element is the number of
-# ambiguities, and the third number is the number of unsure marks, and
-# the last number is the number of unmarked occurences.
+# The structure of the variations dictionary is such that each key is
+# a pair of lemmas that is found in the annotated file. Each value is
+# then again a dictionary, such that each key is the current
+# inconsistency type header (eg. context or nil) or None if there
+# hasn't been one specified. The value for each header is a
+# 3-namedtuple where the first element is the number of actual
+# inconsistencies, the second element is the number of ambiguities,
+# and the third number is the number of unsure marks, and the last
+# number is the number of unmarked occurences.
 variations = defaultdict(lambda: defaultdict(lambda: VariationCount(0, 0, 0, 0)))
 
 filename = sys.argv[1]
@@ -53,22 +54,19 @@ with open(filename, 'r') as f:
         match = re.match(HEADER_REGEX, line)
         if match:
             cur_header = match.group(1)
-        elif cur_header:
-            # If we are still in the error section, then check if we
-            # have a lemma found yet.
-
-            # Then check if we are on the line that tells us if the
+        else:
+            # Check if we are on the line that tells us if the
             # variation was legitimate or not.
             if line[0] == '\t' and line[1] in ['y', 'n', '?'] and cur_lemmas:
                 # Check to make sure that one variation isn't counted
                 # twice.
                 if new_variation:
                     if line[1] == 'y':
-                        variations[cur_header][cur_lemmas].yes += 1
+                        variations[cur_lemmas][cur_header].yes += 1
                     elif line[1] == 'n':
-                        variations[cur_header][cur_lemmas].no += 1
+                        variations[cur_lemmas][cur_header].no += 1
                     elif line[1] == '?':
-                        variations[cur_header][cur_lemmas].unsure += 1
+                        variations[cur_lemmas][cur_header].unsure += 1
 
                 new_variation = False
             # Otherwise if we have current lemmas, and are on a newline
@@ -77,7 +75,7 @@ with open(filename, 'r') as f:
                 # Check to make sure that one variation isn't coutned
                 # twice.
                 if new_variation:
-                    variations[cur_header][cur_lemmas].unmarked += 1
+                    variations[cur_lemmas][cur_header].unmarked += 1
 
                 new_variation = False
             # Otherwise, the line might be a line that starts a lemma
@@ -96,15 +94,3 @@ with open(filename, 'r') as f:
             # occurence.
             elif line[0] == '\t':
                 new_variation = True
-
-# Output the results
-for header, lemmas in variations.items():
-    print(header)
-
-    for lemma, counts in lemmas.items():
-        print('{}, {}'.format(*lemma))
-        print('\tyes = {}, no = {}, unsure = {}, unmarked = {}'.format(*counts))
-
-        print
-
-    print
