@@ -12,6 +12,7 @@
 # repo's README.
 ######################################################################
 
+from __future__ import division
 from collections import defaultdict
 from recordclass import recordclass
 
@@ -31,14 +32,11 @@ if len(sys.argv) < 2:
 
 # The structure of the variations dictionary is such that each key is
 # a pair of lemmas that is found in the annotated file. Each value is
-# then again a dictionary, such that each key is the current
-# inconsistency type header (eg. context or nil) or None if there
-# hasn't been one specified. The value for each header is a
-# 3-namedtuple where the first element is the number of actual
+# then a 3-namedtuple where the first element is the number of actual
 # inconsistencies, the second element is the number of ambiguities,
 # and the third number is the number of unsure marks, and the last
 # number is the number of unmarked occurences.
-variations = defaultdict(lambda: defaultdict(lambda: VariationCount(0, 0, 0, 0)))
+variations = defaultdict(lambda: VariationCount(0, 0, 0, 0))
 
 filename = sys.argv[1]
 with open(filename, 'r') as f:
@@ -62,20 +60,20 @@ with open(filename, 'r') as f:
                 # twice.
                 if new_variation:
                     if line[1] == 'y':
-                        variations[cur_lemmas][cur_header].yes += 1
+                        variations[cur_lemmas].yes += 1
                     elif line[1] == 'n':
-                        variations[cur_lemmas][cur_header].no += 1
+                        variations[cur_lemmas].no += 1
                     elif line[1] == '?':
-                        variations[cur_lemmas][cur_header].unsure += 1
+                        variations[cur_lemmas].unsure += 1
 
                 new_variation = False
             # Otherwise if we have current lemmas, and are on a newline
             # then this variation was unmarked.
-            elif line == '\n' and cur_lemmas:
+            elif line in ['\n', '\r\n'] and cur_lemmas:
                 # Check to make sure that one variation isn't coutned
                 # twice.
                 if new_variation:
-                    variations[cur_lemmas][cur_header].unmarked += 1
+                    variations[cur_lemmas].unmarked += 1
 
                 new_variation = False
             # Otherwise, the line might be a line that starts a lemma
@@ -94,3 +92,31 @@ with open(filename, 'r') as f:
             # occurence.
             elif line[0] == '\t':
                 new_variation = True
+
+# Print the output format
+print 'This is the output format'
+print 'lemma1, lemma2'
+print '\t# inconsistent|# total|% precision'
+
+print
+print
+
+fully_inconsistent = 0
+accounted = 0
+for lemma_pair, count in variations.items():
+    # Do not include unfinished counts.
+    if count.unsure == 0 and count.unmarked == 0:
+        accounted += 1
+        print '{}, {}'.format(*lemma_pair)
+
+        total = count.yes + count.no + count.unsure + count.unmarked
+        print '\t{}\t{}\t{}%'.format(count.no, total, count.no / total * 100)
+
+        if count.yes == 0:
+            fully_inconsistent += 1
+
+if accounted > 0:
+    print 'Percent of lemmas where all tokens were inconsistent'
+    print '{} / {} = {}%'.format(fully_inconsistent, accounted, fully_inconsistent / accounted * 100)
+else:
+    print 'No instances were counted'
