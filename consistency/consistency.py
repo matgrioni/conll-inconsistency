@@ -57,7 +57,11 @@ def calc_internal_context(sentence, word1, word2):
 def print_errors(errors, header):
     print '----------------------  {}  ----------------------'.format(header)
     for lemmas, lemma_errors in errors.items():
-        print ', '.join(lemmas)
+        if len(lemmas) > 1:
+            print ', '.join(lemmas)
+        else:
+            l = lemmas.pop()
+            print '{}, {}'.format(l, l)
         for error in lemma_errors:
             dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
             print '\t{} at {}'.format(dep1, error.line_number1)
@@ -107,8 +111,7 @@ with open(filename, 'r') as f:
                             first_index = min(word1.index, word2.index)
                             context = ContextVariation(internal_ctx, external_ctx, NIL, sent_start +  word1.index)
 
-                            if child.dep not in ("mwe", "conj"):
-                                relations[nil_lemmas][NIL_RELATION].append(context)
+                            relations[nil_lemmas][NIL_RELATION].append(context)
                     else:
                         if word1.dep_index == word2.index:
                             head = word2
@@ -129,9 +132,7 @@ with open(filename, 'r') as f:
                         first_index = min(head.index, child.index)
                         context = ContextVariation(internal_ctx, external_ctx, head.dep, sent_start + word1.index)
 
-                        # TODO: Comment this or actually make it readable
-                        if child.dep not in ("mwe", "conj"):
-                            relations[related_lemmas][(direction, child.dep)].append(context)
+                        relations[related_lemmas][(direction, child.dep)].append(context)
 
             sent_start = -1
             del lines[:]
@@ -161,8 +162,11 @@ for related_lemmas, lemma_variations in relations.items():
             if dep1 != (NIL, NIL) and dep2 != (NIL, NIL):
                 for variation1 in lemma_variations[dep1]:
                     for variation2 in lemma_variations[dep2]:
+                        # NOTE: The following if statements is for once sent-ids are more common.
+                        # if not((variation1.id > -1 and variation2.id > -1) and (variation1.id == variation2.id)):
                         if variation1.external_ctx == variation2.external_ctx:
                             # Lastly, is the check for head dependencies which is on top of the external context.
+                            # TODO: Shorter lines
                             if dep_heuristic:
                                 if variation1.head_dep == variation2.head_dep:
                                     context_errors[related_lemmas].append(Error(dep1, dep2, variation1.line_number, variation2.line_number))
