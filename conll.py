@@ -37,9 +37,11 @@ class Sentence(object):
 
         id_match = re.match(Sentence.SENTENCE_ID_REGEX, lines[0])
         if id_match:
-            self.id = (id_match.group(1), id_match.group(2))
+            self.id = id_match.group(2)
+            self.branch = id_match.group(1)
         else:
-            self.id = (None, -1)
+            self.id = -1
+            self.branch = None
 
         lines = filter(self._is_word_line, lines)
 
@@ -53,31 +55,15 @@ class Sentence(object):
         except:
             self.text = ""
 
-        # Construct the sentence tree here.
-        self._create_tree()
-
     def _is_word_line(self, line):
         return line[0] != Sentence.COMMENT_MARKER and not(re.match(Sentence.CONTRACTION_REGEX, line))
 
-    def _create_tree(self):
-        for word in self.words:
-            if word.dep_index == 0:
-                self.tree = Tree(word)
-                self._create_tree_helper(self.tree, word.index)
-                break
-
-    def _create_tree_helper(self, tree, dep_index):
-        child_words = filter(lambda word: word.dep_index == dep_index, self.words)
-
-        for word in child_words:
-            t = Tree(word)
-            self._create_tree_helper(t, word.index)
-            tree.add_children(t)
-
+    # TODO: Isolate into new interface
     def dep(self, word):
         word_index = self.words.index(word)
         return self.words[self.words[word_index].dep_index - 1]
 
+    # TODO: Isolate into new interface
     def context_match(self, value, left, right, callback, context_callback):
         for i, word in enumerate(self.words):
             if callback(word) == value:
@@ -102,6 +88,33 @@ class Sentence(object):
 
     def __len__(self):
         return len(self.words)
+
+# A navigable tree created from a provided Sentence object. The
+# sentence's root is the root of this tree. The root's dependents are
+# then the children of the root node and so on. The SentenceTree also
+# actually extends Tree, so look to that for more info, this is just a
+# wrapper around the construction of a tree data structure from a
+# sentence object.
+class SentenceTree(Tree):
+    def __init__(self, sentence):
+        self.sentence = sentence
+        for word in self.sentence:
+            if word.dep_index == 0:
+                super(Tree, self).__init__(word)
+                break
+
+        self._construct_tree()
+
+    def _construct_tree(self):
+        self._construct_tree_helper(self, 0)
+
+    def _construct_tree_helper(self, tree, index):
+        child_words = filter(lambda word: word.dep_index == index, self.sentence)
+
+        for word in child_words:
+            t = Tree(word)
+            self._construct_tree_helper(t, word.index)
+            tree.add_children(t)
 
 class Word(object):
     FIELD_DELIMITER = '\t'
