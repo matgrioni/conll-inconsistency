@@ -103,13 +103,17 @@ print
 
 fully_inconsistent = 0
 accounted = 0
+inconsistent_tokens = 0
+total_tokens = 0
 for lemma_pair, count in variations.items():
     # Do not include unfinished counts.
     if count.unsure == 0 and count.unmarked == 0:
         accounted += 1
         print '{}, {}'.format(*lemma_pair)
 
-        total = count.yes + count.no + count.unsure + count.unmarked
+        total = count.yes + count.no
+        inconsistent_tokens += count.no
+        total_tokens += total
         print '\t{}\t{}\t{}%'.format(count.no, total, count.no / total * 100)
 
         if count.yes == 0:
@@ -118,5 +122,9 @@ for lemma_pair, count in variations.items():
 if accounted > 0:
     print 'Percent of lemmas where all tokens were inconsistent'
     print '{} / {} = {}%'.format(fully_inconsistent, accounted, fully_inconsistent / accounted * 100)
+
+    print 'Percent of all tokens that were inconsistent'
+    print '{} / {} = {}%'.format(inconsistent_tokens, total_tokens, inconsistent_tokens / total_tokens)
 else:
-    print 'No instances were counted'
+    print 'No instances were counted because they all had at least'
+    print 'one unsure or one unmarked token'
