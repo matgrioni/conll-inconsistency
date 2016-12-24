@@ -50,7 +50,7 @@ class TreeBank(object):
 
 class Sentence(object):
     COMMENT_MARKER = '#'
-    SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: ([a-z]){2}-ud-(dev|train|test)_(\d+)'
+    SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: ([a-z]{2}-ud-(dev|train|test)_\d+)'
     CONTRACTION_REGEX = '^\d+-\d+'
     SENTENCE_TEXT_MARKER = ':'
 
@@ -60,13 +60,9 @@ class Sentence(object):
 
         id_match = re.match(Sentence.SENTENCE_ID_REGEX, lines[0])
         if id_match:
-            self.lang = id_match.group(1)
-            self.branch = id_match.group(2)
-            self.id = id_match.group(3)
+            self.id = id_match.group(1)
         else:
-            self.lang = None
-            self.branch = None
-            self.id = -1
+            self.id = None
 
         self.words = [Word(line) for line in lines if self._is_word_line(line)]
 

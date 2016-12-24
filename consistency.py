@@ -106,10 +106,11 @@ for sentence in t:
         
         internal_ctx = calc_internal_context(sentence, word1, word2)
         external_ctx = calc_external_context(sentence, word1, word2)
+        location = '{}#{}'.format(sentence.id, word1.index)
 
         if word1.dep_index != word2.index and word2.dep_index != word1.index:
             if internal_ctx:
-                context = ContextVariation(internal_ctx, external_ctx, NIL, sentence.id)
+                context = ContextVariation(internal_ctx, external_ctx, NIL, location)
                 relations[lemmas][NIL_RELATION].append(context)
         else:
             if (internal_ctx_pres and internal_ctx) or not internal_ctx_pres:
@@ -121,7 +122,7 @@ for sentence in t:
                     child = word2
 
                 direction = LEFT if head.index < child.index else RIGHT
-                context = ContextVariation(internal_ctx, external_ctx, head.dep, sentence.id)
+                context = ContextVariation(internal_ctx, external_ctx, head.dep, location)
                 relations[lemmas][(direction, child.dep)].append(context)
 
 nil_errors = defaultdict(list)
