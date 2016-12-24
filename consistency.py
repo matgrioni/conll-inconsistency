@@ -12,6 +12,7 @@
 ######################################################################
 
 from collections import defaultdict, namedtuple
+import itertools
 import sys
 
 from conll import *
@@ -35,15 +36,23 @@ Error = namedtuple('Error', ['dependency1', 'dependency2', 'line_number1', 'line
 # binary tuple of lemmas. The two words should be in the sentence and
 # word1 appears before word2 in the sentence.
 def calc_external_context(sentence, word1, word2):
-    ctx_index1 = word1.index - 2
-    ctx_index2 = word2.index
+    if word1.index < word2.index:
+        prev = word1
+        after = word2
+    else:
+        prev = word2
+        after = word1
 
-    if ctx_index1 < len(sentence) and ctx_index1 > -1:
+    # Remember that the Word object index is 1-based not 0-based.
+    ctx_index1 = prev.index - 2
+    ctx_index2 = after.index
+
+    if ctx_index1 > -1:
         ctx1 = sentence[ctx_index1].lemma
     else:
         ctx1 = None
 
-    if ctx_index2 < len(sentence) and ctx_index2 > -1:
+    if ctx_index2 < len(sentence):
         ctx2 = sentence[ctx_index2].lemma
     else:
         ctx2 = None
@@ -60,7 +69,7 @@ def print_errors(errors, header):
         if len(lemmas) > 1:
             print ', '.join(lemmas)
         else:
-            l = lemmas.pop()
+            l, = lemmas
             print '{}, {}'.format(l, l)
         for error in lemma_errors:
             dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
@@ -86,56 +95,34 @@ internal_ctx_pres = reduce(lambda acc, option: acc or option in sys.argv, INTERN
 # TODO: Explain why defaultdict
 filename = sys.argv[1]
 relations = defaultdict(lambda: defaultdict(list))
-with open(filename, 'r') as f:
-    lines = []
-    sent_start = -1
-    for l, line in enumerate(f):
-        stripped = line.strip()
-        if stripped:
-            if stripped[0] != "#":
-                if sent_start < 0:
-                    sent_start = l
-                lines.append(stripped)
+t = TreeBank()
+t.from_filename(filename)
+for sentence in t:
+    index_pairs = itertools.combinations(range(len(sentence.words)), 2)
+    for index_pair in index_pairs:
+        word1 = sentence.words[index_pair[0]]
+        word2 = sentence.words[index_pair[1]]
+        lemmas = frozenset((word1.lemma, word2.lemma))
+        
+        internal_ctx = calc_internal_context(sentence, word1, word2)
+        external_ctx = calc_external_context(sentence, word1, word2)
+
+        if word1.dep_index != word2.index and word2.dep_index != word1.index:
+            if internal_ctx:
+                context = ContextVariation(internal_ctx, external_ctx, NIL, sentence.id)
+                relations[lemmas][NIL_RELATION].append(context)
         else:
-            sentence = Sentence("\n".join(lines))
-            for i, word1 in enumerate(sentence):
-                for word2 in sentence[i+1:]:
-                    # The two words are not related.
-                    if word1.dep_index != word2.index and word2.dep_index != word1.index:
-                        nil_lemmas = frozenset((word1.lemma, word2.lemma))
+            if (internal_ctx_pres and internal_ctx) or not internal_ctx_pres:
+                if word1.dep_index == word2.index:
+                    head = word2
+                    child = word1
+                elif word2.dep_index == word1.index:
+                    head = word1
+                    child = word2
 
-                        internal_ctx = calc_internal_context(sentence, word1, word2)
-                        if (internal_ctx_pres and internal_ctx) or not internal_ctx_pres:
-                            external_ctx = calc_external_context(sentence, word1, word2)
-
-                            first_index = min(word1.index, word2.index)
-                            context = ContextVariation(internal_ctx, external_ctx, NIL, sent_start +  word1.index)
-
-                            relations[nil_lemmas][NIL_RELATION].append(context)
-                    else:
-                        if word1.dep_index == word2.index:
-                            head = word2
-                            child = word1
-                        elif word2.dep_index == word1.index:
-                            head = word1
-                            child = word2
-                        related_lemmas = frozenset((head.lemma, child.lemma))
-
-                        internal_ctx = calc_internal_context(sentence, head, child)
-
-                        direction = LEFT if head.index < child.index else RIGHT
-                        if direction == LEFT:
-                            external_ctx = calc_external_context(sentence, head, child)
-                        else:
-                            external_ctx = calc_external_context(sentence, child, head)
-
-                        first_index = min(head.index, child.index)
-                        context = ContextVariation(internal_ctx, external_ctx, head.dep, sent_start + word1.index)
-
-                        relations[related_lemmas][(direction, child.dep)].append(context)
-
-            sent_start = -1
-            del lines[:]
+                direction = LEFT if head.index < child.index else RIGHT
+                context = ContextVariation(internal_ctx, external_ctx, head.dep, sentence.id)
+                relations[lemmas][(direction, child.dep)].append(context)
 
 nil_errors = defaultdict(list)
 context_errors = defaultdict(list)
