@@ -3,20 +3,43 @@ import re
 from tree import *
 
 class TreeBank(object):
-    def __init__(self, treebank_str):
+    def from_filename(self, filename):
         self.sentences = []
-        lines = treebank_str.splitlines()
 
+        with open(filename, 'r') as f:
+            lines = []
+            for line in f:
+                stripped = line.strip()
+
+                # If the line is not blank then add it to the running
+                # list of lines for the current sentence.
+                if stripped:
+                    lines.append(stripped)
+                else:
+                    # Otherwise, the line is blank and the end of this
+                    # sentence has been reached. So combine the lines
+                    # found for this sentence and create Sentence
+                    # object.
+                    annotation = '\n'.join(lines)
+                    self.sentences.append(Sentence(annotation))
+                    del lines[:]
+
+    def from_string(self, string):
+        self.sentences = []
+        lines = string.splitlines();
+
+        start = 0
         idx = 0
-        while idx < len(lines):
-            blank_line = idx
-            while lines[blank_line] != '':
-                blank_line += 1
+        while start < len(lines):
+            line = lines[idx].strip()
 
-            annotation = '\n'.join(lines[idx:blank_line])
-            self.sentences.append(Sentence(annotation))
+            if not line:
+                annotation = '\n'.join(lines[start:idx])
+                self.sentences.append(Sentence(annotation))
 
-            idx = blank_line + 1
+                start = idx + 1
+
+            idx += 1
 
     def __iter__(self):
         for sentence in self.sentences:
@@ -27,9 +50,9 @@ class TreeBank(object):
 
 class Sentence(object):
     COMMENT_MARKER = '#'
-    SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: fr-ud-(dev|train|test)_(\d+)'
+    SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: ([a-z]){2}-ud-(dev|train|test)_(\d+)'
     CONTRACTION_REGEX = '^\d+-\d+'
-    SENTENCE_TEXT_START = 17
+    SENTENCE_TEXT_MARKER = ':'
 
     def __init__(self, annotation):
         self.words = []
@@ -37,51 +60,28 @@ class Sentence(object):
 
         id_match = re.match(Sentence.SENTENCE_ID_REGEX, lines[0])
         if id_match:
-            self.id = id_match.group(2)
-            self.branch = id_match.group(1)
+            self.lang = id_match.group(1)
+            self.branch = id_match.group(2)
+            self.id = id_match.group(3)
         else:
-            self.id = -1
+            self.lang = None
             self.branch = None
+            self.id = -1
 
-        lines = filter(self._is_word_line, lines)
-
-        for line in lines:
-            self.words.append(Word(line))
+        self.words = [Word(line) for line in lines if self._is_word_line(line)]
 
         # This is to handle the cases where the format is different
-        # from the French corpus. TODO.
+        # from the French corpus.
+        # TODO: Comment that for accurate sentence text need space after
+        # ':'
         try:
-            self.text = lines[1][Sentence.SENTENCE_TEXT_START:]
+            marker_index = lines[1].index(Sentence.SENTENCE_TEXT_MARKER)
+            self.text = lines[1][marker_index + 2:]
         except:
             self.text = ""
 
     def _is_word_line(self, line):
-        return line[0] != Sentence.COMMENT_MARKER and not(re.match(Sentence.CONTRACTION_REGEX, line))
-
-    # TODO: Isolate into new interface
-    def dep(self, word):
-        word_index = self.words.index(word)
-        return self.words[self.words[word_index].dep_index - 1]
-
-    # TODO: Isolate into new interface
-    def context_match(self, value, left, right, callback, context_callback):
-        for i, word in enumerate(self.words):
-            if callback(word) == value:
-                matching = False
-                if i - 1 >= 0 and left:
-                    matching = left == context_callback(self.words[i - 1])
-                else:
-                    matching = not(left) or (i - 1 < 0)
-
-                if i + 1 < len(self.words) and right:
-                    matching = matching and right == context_callback(self.words[i + 1])
-                else:
-                    matching = matching and (not(right) or (i + 1 >= len(self.words)))
-
-                if matching:
-                    return word
-
-        return None
+        return line[0] != Sentence.COMMENT_MARKER and not re.match(Sentence.CONTRACTION_REGEX, line)
 
     def __getitem__(self, key):
         return self.words[key]
