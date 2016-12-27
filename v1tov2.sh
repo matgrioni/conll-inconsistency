@@ -27,17 +27,20 @@
 # are accurate.
 ######################################################################
 
-syntactic_relations=(dobj obj nsubjpass nsubj:pass csubjpass csubj:pass auxpass aux:pass)
+morph=(Negative Polarity Aspect\=Pro Aspect\=Prosp VerbForm\=Trans\
+       VerbForm\=Conv Definite\=Red Definite\=Cons)
+syn=(dobj obj nsubjpass nsubj:pass csubjpass csubj:pass auxpass aux:pass\
+     mwe fixed)
 
 filename=$1
 sed -i 's/\tCONJ\t/\tCCONJ\t/g' $filename
 
-sed -i 's/Negative/Polarity/g' $filename
-sed -i 's/Aspect=Pro/Aspect=Prosp/g' $filename
-sed -i 's/VerbForm=Trans/VerbForm=Conv/g' $filename
-sed -i 's/Definite=Red/Definite=Cons/g' $filename
-
-for ((i=0; i < ${#syntactic_relations[@]}; i += 2));
+for ((i=0; i < ${#morph[@]}; i+=2));
 do
-    sed -i "s/\t${syntactic_relations[i]}\t/\t${syntactic_relations[i+1]}\t/g" $filename
+    sed -i "s/${morph[i]}/${morph[i+1]}/g" $filename
+done
+
+for ((i=0; i < ${#syn[@]}; i+=2));
+do
+    sed -i "s/\t${syn[i]}\t/\t${syn[i+1]}\t/g" $filename
 done
