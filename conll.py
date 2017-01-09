@@ -8,7 +8,8 @@ class TreeBank(object):
 
         with open(filename, 'r') as f:
             lines = []
-            for line in f:
+            sent_start = 1
+            for i, line in enumerate(f):
                 stripped = line.strip()
 
                 # If the line is not blank then add it to the running
@@ -21,7 +22,8 @@ class TreeBank(object):
                     # found for this sentence and create Sentence
                     # object.
                     annotation = '\n'.join(lines)
-                    self.sentences.append(Sentence(annotation))
+                    self.sentences.append(Sentence(annotation, sent_start))
+                    sent_start = i + 2
                     del lines[:]
 
     def from_string(self, string):
@@ -35,7 +37,7 @@ class TreeBank(object):
 
             if not line:
                 annotation = '\n'.join(lines[start:idx])
-                self.sentences.append(Sentence(annotation))
+                self.sentences.append(Sentence(annotation, start + 1))
 
                 start = idx + 1
 
@@ -54,7 +56,8 @@ class Sentence(object):
     CONTRACTION_REGEX = '^\d+-\d+'
     SENTENCE_TEXT_MARKER = ':'
 
-    def __init__(self, annotation):
+    def __init__(self, annotation, line_num=-1):
+        self.line_num = line_num
         self.words = []
         lines = annotation.splitlines()
 
@@ -64,7 +67,10 @@ class Sentence(object):
         else:
             self.id = None
 
-        self.words = [Word(line) for line in lines if self._is_word_line(line)]
+        for i, line in enumerate(lines):
+            if self._is_word_line(line):
+                word_line = -1 if line_num == -1 else self.line_num + i
+                self.words.append(Word(line, word_line))
 
         # This is to handle the cases where the format is different
         # from the French corpus.
@@ -116,7 +122,8 @@ class Word(object):
     FIELD_DELIMITER = '\t'
     FEATURE_DELIMITER = '|'
 
-    def __init__(self, annotation):
+    def __init__(self, annotation, line_num=-1):
+        self.line_num = line_num
         fields = annotation.split(Word.FIELD_DELIMITER)
 
         self.index = int(fields[0])
