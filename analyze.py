@@ -25,7 +25,7 @@ import sys
 # variation occurences that follow it.
 HEADER_REGEX = '^-+\s*(.+?)\s*-+$'
 
-VariationCount = recordclass('VariationCount', ['yes', 'no', 'unsure', 'unmarked'])
+VariationCount = recordclass('VariationCount', ['correct', 'incorrect', 'unsure', 'unmarked'])
 
 if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided')
@@ -43,42 +43,23 @@ with open(filename, 'r') as f:
     cur_header = None
     cur_lemmas = None
 
-    # A marker for if the current variation in the parser has been
-    # marked in the variations dict.
-    new_variation = True
-
     for line in f:
         # Check first if we are starting a next section of errors.
         match = re.match(HEADER_REGEX, line)
         if match:
             cur_header = match.group(1)
         else:
-            # Check if we are on the line that tells us if the
-            # variation was legitimate or not.
-            if line[0] == '\t' and line[1] in ['y', 'n', '?'] and cur_lemmas:
-                # Check to make sure that one variation isn't counted
-                # twice.
-                if new_variation:
-                    if line[1] == 'y':
-                        variations[cur_lemmas].yes += 1
-                    elif line[1] == 'n':
-                        variations[cur_lemmas].no += 1
-                    elif line[1] == '?':
-                        variations[cur_lemmas].unsure += 1
-
-                new_variation = False
-            # Otherwise if we have current lemmas, and are on a newline
-            # then this variation was unmarked.
-            elif line in ['\n', '\r\n'] and cur_lemmas:
-                # Check to make sure that one variation isn't coutned
-                # twice.
-                if new_variation:
+            if line[0] == '\t':
+                annotation = line[-2]
+                if annotation == 'y':
+                    variations[cur_lemmas].correct += 1
+                elif annotation == 'n':
+                    variations[cur_lemmas].incorrect += 1
+                elif annotation == '?':
+                    variations[cur_lemmas].unsure += 1
+                else:
                     variations[cur_lemmas].unmarked += 1
-
-                new_variation = False
-            # Otherwise, the line might be a line that starts a lemma
-            # pair. In which case, they have no whitespace before them
-            elif line[0] != '\t':
+            elif line not in ['\n', '\r\n']:
                 # This line is starting off a pair of lemmas, so split
                 # it into the two lemmas, ignoring the '\n' in the
                 # second lemma.
@@ -87,11 +68,6 @@ with open(filename, 'r') as f:
                 second_lemma = line[comma + 2:-1]
 
                 cur_lemmas = (first_lemma, second_lemma)
-            # Otherwise, if the line starts with a tab, but does not
-            # start with a 'y', 'n', '?', then this is a new variation
-            # occurence.
-            elif line[0] == '\t':
-                new_variation = True
 
 # Print the output format
 print 'This is the output format'
@@ -111,12 +87,12 @@ for lemma_pair, count in variations.items():
         accounted += 1
         print '{}, {}'.format(*lemma_pair)
 
-        total = count.yes + count.no
-        inconsistent_tokens += count.no
+        total = count.correct + count.incorrect
+        inconsistent_tokens += count.incorrect
         total_tokens += total
-        print '\t{}\t{}\t{}%'.format(count.no, total, count.no / total * 100)
+        print '\t{}\t{}\t{}%'.format(count.incorrect, total, count.incorrect / total * 100)
 
-        if count.yes == 0:
+        if count.correct == 0:
             fully_inconsistent += 1
 
 if accounted > 0:
