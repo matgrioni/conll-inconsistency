@@ -30,7 +30,7 @@ NIL = "NIL"
 NIL_RELATION = (NIL, NIL)
 
 ContextVariation = namedtuple('ContextVariation', ['internal_ctx', 'external_ctx', 'head_dep', 'line_number'])
-Error = namedtuple('Error', ['dependency1', 'dependency2', 'line_number1', 'line_number2'])
+Error = namedtuple('Error', ['dep', 'line_number'])
 
 # Get the external context of the two words in the given sentence as a
 # binary tuple of lemmas. The two words should be in the sentence and
@@ -72,11 +72,10 @@ def print_errors(errors, header):
             l, = lemmas
             print '{}, {}'.format(l, l)
         for error in lemma_errors:
-            dep1, dep2 = ', '.join(error.dependency1), ', '.join(error.dependency2)
-            print '\t{} at {}'.format(dep1, error.line_number1)
-            print '\t{} at {}'.format(dep2, error.line_number2)
+            dep = ', '.join(error.dep)
+            print '\t{} at {}'.format(dep, error.line_number)
 
-            print
+        print
 
 ######################################################################
 #
@@ -124,8 +123,8 @@ for sentence in t:
                 context = ContextVariation(internal_ctx, external_ctx, head.dep, word1.line_num)
                 relations[lemmas][(direction, child.dep)].append(context)
 
-nil_errors = defaultdict(list)
-context_errors = defaultdict(list)
+nil_errors = defaultdict(set)
+context_errors = defaultdict(set)
 
 for related_lemmas, lemma_variations in relations.items():
     # First check for NIL errors. This is where for a pair of lemmas
@@ -137,7 +136,8 @@ for related_lemmas, lemma_variations in relations.items():
             if dep != (NIL, NIL):
                 for variation in variations:
                     if variation.internal_ctx == nil_variation.internal_ctx:
-                        nil_errors[related_lemmas].append(Error((NIL, NIL), dep, variation.line_number, nil_variation.line_number))
+                        nil_errors[related_lemmas].add(Error(dep, variation.line_number))
+                        nil_errors[related_lemmas].add(Error((NIL, NIL), nil_variation.line_number))
 
     # Then check for errors using the non-fringe heuristic. This
     # checks between non-NIL relations. If the external contexts
@@ -156,9 +156,11 @@ for related_lemmas, lemma_variations in relations.items():
                             # TODO: Shorter lines
                             if dep_heuristic:
                                 if variation1.head_dep == variation2.head_dep:
-                                    context_errors[related_lemmas].append(Error(dep1, dep2, variation1.line_number, variation2.line_number))
+                                    context_errors[related_lemmas].add(Error(dep1, variation1.line_number))
+                                    context_errors[related_lemmas].add(Error(dep2, variation2.line_number))
                             else:
-                                context_errors[related_lemmas].append(Error(dep1, dep2, variation1.line_number, variation2.line_number))
+                                context_errors[related_lemmas].add(Error(dep1, variation1.line_number))
+                                context_errors[related_lemmas].add(Error(dep2, variation2.line_number))
 
 # Print out the error results
 print_errors(nil_errors, 'NIL Errors')
