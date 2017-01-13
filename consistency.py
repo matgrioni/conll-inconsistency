@@ -11,10 +11,11 @@
 #
 ######################################################################
 
-from collections import defaultdict, namedtuple
 import itertools
+import random
 import sys
 
+from collections import defaultdict, namedtuple
 from conll import *
 
 # Define constants that will be used in the script. Among them being
@@ -23,6 +24,7 @@ from conll import *
 # present for NIL to non-NIL comparisons.
 DEPENDENCY_CONTEXT = ('-d', '-dependency')
 INTERNAL_CONTEXT = ('-i', '-internal')
+NOT_INCLUDE_NIL = ('-n', '-notnil')
 
 LEFT = "L"
 RIGHT = "R"
@@ -63,19 +65,11 @@ def calc_internal_context(sentence, word1, word2):
     words = sentence[word1.index : word2.index - 1] or sentence[word2.index : word1.index - 1]
     return map(lambda word: word.lemma, words)
 
-def print_errors(errors, header):
-    print '----------------------  {}  ----------------------'.format(header)
-    for lemmas, lemma_errors in errors.items():
-        if len(lemmas) > 1:
-            print ', '.join(lemmas)
-        else:
-            l, = lemmas
-            print '{}, {}'.format(l, l)
-        for error in lemma_errors:
-            dep = ', '.join(error.dep)
-            print '\t{} at {}'.format(dep, error.line_number)
-
-        print
+def shuffled_dict(d):
+    items = d.items()
+    random.shuffle(items)
+    for key, value in items:
+        yield key, value
 
 ######################################################################
 #
@@ -88,14 +82,17 @@ if len(sys.argv) < 2:
 
 dep_heuristic = reduce(lambda acc, option: acc or option in sys.argv, DEPENDENCY_CONTEXT, False)
 internal_ctx_pres = reduce(lambda acc, option: acc or option in sys.argv, INTERNAL_CONTEXT, False)
+include_nil = not(reduce(lambda acc, option: acc or option in sys.argv, NOT_INCLUDE_NIL, False))
 
 # Find all relations in the treebank and then consolidate the ones
 # with identical types but different labels.
 # TODO: Explain why defaultdict
 filename = sys.argv[1]
 relations = defaultdict(lambda: defaultdict(list))
+
 t = TreeBank()
 t.from_filename(filename)
+
 for sentence in t:
     index_pairs = itertools.combinations(range(len(sentence.words)), 2)
     for index_pair in index_pairs:
@@ -123,21 +120,30 @@ for sentence in t:
                 context = ContextVariation(internal_ctx, external_ctx, head.dep, word1.line_num)
                 relations[lemmas][(direction, child.dep)].append(context)
 
-nil_errors = defaultdict(set)
-context_errors = defaultdict(set)
+errors = defaultdict(lambda: defaultdict(set))
 
-for related_lemmas, lemma_variations in relations.items():
-    # First check for NIL errors. This is where for a pair of lemmas
-    # they appear as NIL in one situation and as related in another
-    # and they have the same internal context in both occurences.
-    nil_variations = lemma_variations[(NIL, NIL)]
-    for nil_variation in nil_variations:
-        for dep, variations in lemma_variations.items():
-            if dep != (NIL, NIL):
-                for variation in variations:
-                    if variation.internal_ctx == nil_variation.internal_ctx:
-                        nil_errors[related_lemmas].add(Error(dep, variation.line_number))
-                        nil_errors[related_lemmas].add(Error((NIL, NIL), nil_variation.line_number))
+nil_count = 0
+context_count = 0
+is_error = False
+
+for related_lemmas, lemma_variations in shuffled_dict(relations):
+    if include_nil:
+        # First check for NIL errors. This is where for a pair of lemmas
+        # they appear as NIL in one situation and as related in another
+        # and they have the same internal context in both occurences.
+        nil_variations = lemma_variations[(NIL, NIL)]
+        for nil_variation in nil_variations:
+            for dep, variations in lemma_variations.items():
+                if dep != (NIL, NIL):
+                    for variation in variations:
+                        if variation.internal_ctx == nil_variation.internal_ctx:
+                            errors[related_lemmas][Error(dep, variation.line_number)].add('nil')
+                            errors[related_lemmas][Error((NIL, NIL), nil_variation.line_number)].add('nil')
+                            is_error = True
+
+        if is_error:
+            nil_count += 1
+            is_error = False
 
     # Then check for errors using the non-fringe heuristic. This
     # checks between non-NIL relations. If the external contexts
@@ -156,20 +162,29 @@ for related_lemmas, lemma_variations in relations.items():
                             # TODO: Shorter lines
                             if dep_heuristic:
                                 if variation1.head_dep == variation2.head_dep:
-                                    context_errors[related_lemmas].add(Error(dep1, variation1.line_number))
-                                    context_errors[related_lemmas].add(Error(dep2, variation2.line_number))
+                                    errors[related_lemmas][Error(dep1, variation1.line_number)].add('context')
+                                    errors[related_lemmas][Error(dep2, variation2.line_number)].add('context')
+                                    is_error = True
                             else:
-                                context_errors[related_lemmas].add(Error(dep1, variation1.line_number))
-                                context_errors[related_lemmas].add(Error(dep2, variation2.line_number))
+                                errors[related_lemmas][Error(dep1, variation1.line_number)].add('context')
+                                errors[related_lemmas][Error(dep2, variation2.line_number)].add('context')
+                                is_error = True
+    if is_error:
+        context_count += 1
+        is_error = False
 
 # Print out the error results
-print_errors(nil_errors, 'NIL Errors')
+for lemmas, lemma_errors in errors.items():
+    if len(lemmas) > 1:
+        print ', '.join(lemmas)
+    else:
+        l, = lemmas
+        print '{}, {}'.format(l, l)
+    for error, types in lemma_errors.items():
+        dep = ', '.join(error.dep)
+        print '\t{} | {} at {}'.format(','.join(types), dep, error.line_number)
 
-print
+    print
 
-print_errors(context_errors, 'Context Errors')
-
-print
-
-print '# of NIL errors: {}'.format(len(nil_errors))
-print '# of context errors: {}'.format(len(context_errors))
+print '# of lemma pairs with NIL errors: {}'.format(nil_count)
+print '# of lemma pairs with context errors: {}'.format(context_count)
