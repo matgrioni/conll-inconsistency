@@ -16,16 +16,15 @@ def transfer_downstream(source_ann, dest_ann):
     not_transferred = 0
     amb = 0
 
-    for header, lemmas in source_ann.annotations.items():
-        for lemma, anns in lemmas.items():
-            for ann in anns:
-                if dest_ann.has_line(header, lemma, ann.dep, ann.line_num):
-                    dest_ann.set_line(header, lemma, ann.dep, ann.line_num, ann.ann)
-                else:
-                    not_transferred += 1
+    for lemmas, occurences in source_ann.annotations.items():
+        for o in occurences:
+            if dest_ann.has_line(o.type, lemmas, o.dep, o.line_num):
+                dest_ann.set_line(o.type, lemmas, o.dep, o.line_num, o.ann)
+            else:
+                not_transferred += 1
 
-                    if ann.ann == 'y':
-                        amb += 1
+                if o.ann == 'y':
+                    amb += 1
 
     return (not_transferred, amb)
 
@@ -42,3 +41,4 @@ dest_ann.from_filename(dest_filename)
 
 results = transfer_downstream(source_ann, dest_ann)
 print results
+dest_ann.output(dest_filename)
