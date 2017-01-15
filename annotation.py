@@ -24,7 +24,7 @@ class Annotation(object):
             for line in f:
                 m = re.match(Annotation.LINE_REGEX, line)
                 if m:
-                    dep_t = ', '.split(m.group(2))
+                    dep_t = m.group(2).split(', ')
                     l_n = int(m.group(3))
 
                     line_ann = AnnotationLine(m.group(1), dep_t, l_n, m.group(5))
@@ -42,9 +42,9 @@ class Annotation(object):
                     self.lemmas += 1
 
     def has_line(self, t, lemmas, dep, line_num):
-        return self._find_line(t, lemmas, dep, line_num) == None
+        return self._find_line(t, lemmas, dep, line_num) != None
 
-    def set_ann(self, t, lemmas, dep, line_num, ann):
+    def set_line(self, t, lemmas, dep, line_num, ann):
         l = self._find_line(t, lemmas, dep, line_num)
         if l:
             l.ann = ann
@@ -59,15 +59,16 @@ class Annotation(object):
     def output(self, filename):
         with open(filename, 'w') as f:
             for lemmas, occurences in self.annotations.items():
-                f.write(', '.join(lemmas) + '\n')
+                if len(occurences) > 0:
+                    f.write(', '.join(lemmas) + '\n')
 
-                for o in occurences:
-                    dep_s = ', '.join(o.dep)
-                    if o.ann is None:
-                        line = '\t{} | {} at {}\n'.format(o.type, dep_s, o.line_num)
-                    else:
-                        line = '\t{} | {} at {} {}\n'.format(o.type, dep_s, o.line_num, o.ann)
+                    for o in occurences:
+                        dep_s = ', '.join(o.dep)
+                        if o.ann is None:
+                            line = '\t{} | {} at {}\n'.format(o.type, dep_s, o.line_num)
+                        else:
+                            line = '\t{} | {} at {} {}\n'.format(o.type, dep_s, o.line_num, o.ann)
 
-                    f.write(line)
+                        f.write(line)
 
-                f.write('\n')
+                    f.write('\n')
