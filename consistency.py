@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# coding: utf-8
+#!/usr/bin/env python
 
 ######################################################################
 #
@@ -16,7 +15,7 @@ import random
 import sys
 
 from collections import defaultdict, namedtuple
-from conll import *
+from lib.conll import *
 
 # Define constants that will be used in the script. Among them being
 # the direction of the relation and the different command line

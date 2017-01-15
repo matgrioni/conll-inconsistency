@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 ######################################################################
 # The following is an analysis tool for the output of the results of

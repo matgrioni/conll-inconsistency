@@ -1,8 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import sys
 
-from annotation import Annotation, AnnotationLine
+from lib.annotation import Annotation, AnnotationLine
 
 # Transfers the given annotations in the source to the destination
 # annotations. The assumption is that the source is the annotated
@@ -12,6 +12,10 @@ from annotation import Annotation, AnnotationLine
 # is the number of annotations that could not be transfered to the
 # destination, while the second number is the number of annotations
 # that were not transferred that were ambigiuous.
+
+# TODO: Update docs, and account for the fact that nil errors should
+# not be counted in the transfer. Maybe a separate compare and
+# transfer function.
 def transfer_downstream(source_ann, dest_ann):
     not_transferred = 0
     transferred = 0
