@@ -14,19 +14,22 @@ from annotation import Annotation, AnnotationLine
 # that were not transferred that were ambigiuous.
 def transfer_downstream(source_ann, dest_ann):
     not_transferred = 0
+    transferred = 0
     amb = 0
 
     for lemmas, occurences in source_ann.annotations.items():
         for o in occurences:
-            if dest_ann.has_line(o.type, lemmas, o.dep, o.line_num):
-                dest_ann.set_line(o.type, lemmas, o.dep, o.line_num, o.ann)
-            else:
-                not_transferred += 1
+            if o.ann is not None:
+                if dest_ann.has_line(o.type, lemmas, o.dep, o.line_num):
+                    dest_ann.set_line(o.type, lemmas, o.dep, o.line_num, o.ann)
+                    transferred += 1
+                else:
+                    not_transferred += 1
 
-                if o.ann == 'y':
-                    amb += 1
+                    if o.ann == 'y':
+                        amb += 1
 
-    return (not_transferred, amb)
+    return (transferred, not_transferred, amb)
 
 if len(sys.argv) < 3:
     raise TypeError("Not enough arguments provided")
@@ -40,5 +43,8 @@ dest_ann = Annotation()
 dest_ann.from_filename(dest_filename)
 
 results = transfer_downstream(source_ann, dest_ann)
-print results
 dest_ann.output(dest_filename)
+
+print '{} / {} annotations were transferred'.format(results[0], results[0] + results[1])
+print '{} / {} annotations that were not transferred were also correctly annotated in the original corpus'.format(results[2], results[1])
+print 'The closer to 1 this ratio is, the better the head heuristic because it does not include cases that are not inconsistent that are in the less stringent results. The closer to 0 this ratio is, the worse it is because it removes actual inconsistencies from the results'
