@@ -121,10 +121,6 @@ for sentence in t:
 
 errors = defaultdict(lambda: defaultdict(set))
 
-nil_count = 0
-context_count = 0
-is_error = False
-
 for related_lemmas, lemma_variations in shuffled_dict(relations):
     if include_nil:
         # First check for NIL errors. This is where for a pair of lemmas
@@ -138,11 +134,6 @@ for related_lemmas, lemma_variations in shuffled_dict(relations):
                         if variation.internal_ctx == nil_variation.internal_ctx:
                             errors[related_lemmas][Error(dep, variation.line_number)].add('nil')
                             errors[related_lemmas][Error((NIL, NIL), nil_variation.line_number)].add('nil')
-                            is_error = True
-
-        if is_error:
-            nil_count += 1
-            is_error = False
 
     # Then check for errors using the non-fringe heuristic. This
     # checks between non-NIL relations. If the external contexts
@@ -163,14 +154,9 @@ for related_lemmas, lemma_variations in shuffled_dict(relations):
                                 if variation1.head_dep == variation2.head_dep:
                                     errors[related_lemmas][Error(dep1, variation1.line_number)].add('context')
                                     errors[related_lemmas][Error(dep2, variation2.line_number)].add('context')
-                                    is_error = True
                             else:
                                 errors[related_lemmas][Error(dep1, variation1.line_number)].add('context')
                                 errors[related_lemmas][Error(dep2, variation2.line_number)].add('context')
-                                is_error = True
-    if is_error:
-        context_count += 1
-        is_error = False
 
 # Print out the error results
 for lemmas, lemma_errors in errors.items():
@@ -184,6 +170,3 @@ for lemmas, lemma_errors in errors.items():
         print '\t{} | {} at {}'.format(','.join(types), dep, error.line_number)
 
     print
-
-print '# of lemma pairs with NIL errors: {}'.format(nil_count)
-print '# of lemma pairs with context errors: {}'.format(context_count)

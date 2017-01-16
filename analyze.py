@@ -38,6 +38,9 @@ if len(sys.argv) < 2:
 # number is the number of unmarked occurences.
 variations = defaultdict(lambda: VariationCount(0, 0, 0, 0))
 
+total_count = 0
+annotated_count = 0
+
 filename = sys.argv[1]
 with open(filename, 'r') as f:
     cur_header = None
@@ -50,11 +53,15 @@ with open(filename, 'r') as f:
             cur_header = match.group(1)
         else:
             if line[0] == '\t':
+                total_count += 1
                 annotation = line[-2]
+
                 if annotation == 'y':
                     variations[cur_lemmas].correct += 1
+                    annotated_count += 1
                 elif annotation == 'n':
                     variations[cur_lemmas].incorrect += 1
+                    annotated_count += 1
                 elif annotation == '?':
                     variations[cur_lemmas].unsure += 1
                 else:
@@ -96,6 +103,9 @@ for lemma_pair, count in variations.items():
             fully_inconsistent += 1
 
 if accounted > 0:
+    print 'Total number of occurrences: {}'.format(total_count)
+    print 'Total number of annotated occurrences: {}'.format(annotated_count)
+
     print 'Percent of lemmas where all tokens were inconsistent'
     print '{} / {} = {}%'.format(fully_inconsistent, accounted, fully_inconsistent / accounted * 100)
 
