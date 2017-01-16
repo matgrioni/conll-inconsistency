@@ -19,13 +19,7 @@ from recordclass import recordclass
 import re
 import sys
 
-# Matches a header in the consistency output file. Such as
-# -----------------   Nil Context   --------------------.
-# This header, Nil Context, will be captured and used to clasify the
-# variation occurences that follow it.
-HEADER_REGEX = '^-+\s*(.+?)\s*-+$'
-
-VariationCount = recordclass('VariationCount', ['correct', 'incorrect', 'unsure', 'unmarked'])
+VariationCount = recordclass('VariationCount', ['correct', 'incorrect', 'unmarked'])
 
 if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided')
@@ -34,54 +28,44 @@ if len(sys.argv) < 2:
 # a pair of lemmas that is found in the annotated file. Each value is
 # then a 3-namedtuple where the first element is the number of actual
 # inconsistencies, the second element is the number of ambiguities,
-# and the third number is the number of unsure marks, and the last
-# number is the number of unmarked occurences.
-variations = defaultdict(lambda: VariationCount(0, 0, 0, 0))
+# and the last number is the number of unmarked occurences.
+variations = defaultdict(lambda: VariationCount(0, 0, 0))
 
 total_count = 0
 annotated_count = 0
 
 filename = sys.argv[1]
 with open(filename, 'r') as f:
-    cur_header = None
     cur_lemmas = None
 
     for line in f:
-        # Check first if we are starting a next section of errors.
-        match = re.match(HEADER_REGEX, line)
-        if match:
-            cur_header = match.group(1)
-        else:
-            if line[0] == '\t':
-                total_count += 1
-                annotation = line[-2]
+        if line[0] == '\t':
+            total_count += 1
+            annotation = line[-2]
 
-                if annotation == 'y':
-                    variations[cur_lemmas].correct += 1
-                    annotated_count += 1
-                elif annotation == 'n':
-                    variations[cur_lemmas].incorrect += 1
-                    annotated_count += 1
-                elif annotation == '?':
-                    variations[cur_lemmas].unsure += 1
-                else:
-                    variations[cur_lemmas].unmarked += 1
-            elif line not in ['\n', '\r\n']:
-                # This line is starting off a pair of lemmas, so split
-                # it into the two lemmas, ignoring the '\n' in the
-                # second lemma.
-                comma = line.index(', ')
-                first_lemma = line[:comma]
-                second_lemma = line[comma + 2:-1]
+            if annotation == 'y':
+                variations[cur_lemmas].correct += 1
+                annotated_count += 1
+            elif annotation == 'n':
+                variations[cur_lemmas].incorrect += 1
+                annotated_count += 1
+            else:
+                variations[cur_lemmas].unmarked += 1
+        elif line not in ['\n', '\r\n']:
+            # This line is starting off a pair of lemmas, so split
+            # it into the two lemmas, ignoring the '\n' in the
+            # second lemma.
+            comma = line.index(', ')
+            first_lemma = line[:comma]
+            second_lemma = line[comma + 2:-1]
 
-                cur_lemmas = (first_lemma, second_lemma)
+            cur_lemmas = (first_lemma, second_lemma)
 
 # Print the output format
 print 'This is the output format'
 print 'lemma1, lemma2'
 print '\t# inconsistent|# total|% precision'
 
-print
 print
 
 fully_inconsistent = 0
