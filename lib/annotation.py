@@ -3,7 +3,13 @@ import re
 from collections import defaultdict
 from recordclass import recordclass
 
-AnnotationLine = recordclass('AnnotationLine', ['type', 'dep', 'line_num', 'ann'])
+AnnotationLineInternal = recordclass('AnnotationLineInternal', ['type', 'dep', 'line_num', 'ann'])
+class AnnotationLine(AnnotationLineInternal):
+    def is_annotated(self):
+        return self.ann is not None
+
+    def correct_in_corpus(self):
+        return self.ann == 'y'
 
 class Annotation(object):
     # A line in the annotation file is a line that can be annotated.
@@ -38,20 +44,27 @@ class Annotation(object):
                     first_lemma = line[:comma]
                     second_lemma = line[comma + 2:-1]
 
-                    cur_lemmas = (first_lemma, second_lemma)
+                    cur_lemmas = frozenset((first_lemma, second_lemma))
                     self.lemmas += 1
 
-    def has_line(self, t, lemmas, dep, line_num):
-        return self._find_line(t, lemmas, dep, line_num) != None
+    # Check if this file has a desired line. Provide the set of lemmas as
+    # strings and also the provide the AnnotationLine object that represents the
+    # desired line. Note that this does not take annotation into account, such
+    # as 'y' or 'n'.
+    def has_line(self, lemmas, l):
+        return self._find_line(lemmas, l) is not None
 
-    def set_line(self, t, lemmas, dep, line_num, ann):
-        l = self._find_line(t, lemmas, dep, line_num)
+    # Set the given line to have the given annotation. lemmas is a set of the
+    # desired lemmas and l is the AnnotationLine object that represents the
+    # desired line.
+    def set_line(self, lemmas, l, ann):
+        l = self._find_line(lemmas, l)
         if l:
             l.ann = ann
 
-    def _find_line(self, t, lemmas, dep, line_num):
+    def _find_line(self, lemmas, l):
         for line in self.annotations[lemmas]:
-            if line.type == t and line.dep == dep and line.line_num == line_num:
+            if line.type == l.type and line.dep == l.dep and line.line_num == l.line_num:
                 return line
 
         return None
@@ -60,14 +73,18 @@ class Annotation(object):
         with open(filename, 'w') as f:
             for lemmas, occurences in self.annotations.items():
                 if len(occurences) > 0:
-                    f.write(', '.join(lemmas) + '\n')
+                    if len(lemmas) > 1:
+                        f.write(', '.join(lemmas) + '\n')
+                    else:
+                        l, = lemmas
+                        f.write('{}, {}\n'.format(l, l))
 
                     for o in occurences:
                         dep_s = ', '.join(o.dep)
-                        if o.ann is None:
-                            line = '\t{} | {} at {}\n'.format(o.type, dep_s, o.line_num)
-                        else:
+                        if o.is_annotated():
                             line = '\t{} | {} at {} {}\n'.format(o.type, dep_s, o.line_num, o.ann)
+                        else:
+                            line = '\t{} | {} at {}\n'.format(o.type, dep_s, o.line_num)
 
                         f.write(line)
 
