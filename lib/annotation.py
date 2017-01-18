@@ -30,7 +30,7 @@ class Annotation(object):
             for line in f:
                 m = re.match(Annotation.LINE_REGEX, line)
                 if m:
-                    dep_t = m.group(2).split(', ')
+                    dep_t = tuple(m.group(2).split(', '))
                     l_n = int(m.group(3))
 
                     line_ann = AnnotationLine(m.group(1), dep_t, l_n, m.group(5))
