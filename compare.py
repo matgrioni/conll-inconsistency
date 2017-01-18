@@ -43,7 +43,7 @@ second.from_filename(sys.argv[2])
 # represents the amount that are shared between the first and second file.
 total = [0, 0]
 annotated = [0, 0]
-left_out = 0
+correct = [0, 0]
 
 for lemmas, occurrences in first.annotations.items():
     for occ in occurrences:
@@ -55,13 +55,21 @@ for lemmas, occurrences in first.annotations.items():
 
         if occ.is_annotated():
             annotated[0] += 1
+            if occ.correct_in_corpus():
+                correct[0] += 1
+
             if shared:
                 annotated[1] += 1
-            else:
+
                 if occ.correct_in_corpus():
-                    left_out += 1
+                    correct[1] += 1
+
+incorrect = [annotated[0] - correct[0], annotated[1] - correct[1]]
+left_out = correct[0] - correct[1]
+too_much = incorrect[0] - incorrect[1]
 
 print '{} / {} of occurrences are annotated in {}'.format(annotated[0], total[0], sys.argv[1])
 print '{} / {} of occurences in {} are in also {}'.format(total[1], total[0], sys.argv[1], sys.argv[2])
 print '{} / {} of annotated occurences in {} are also in {}'.format(annotated[1], annotated[0], sys.argv[1], sys.argv[2])
 print '{} / {} of annotated occurences in {} NOT in {} are correct in the original corpus'.format(left_out, annotated[0] - annotated[1], sys.argv[1], sys.argv[2])
+print '{} / {} of incorrect occurences in {} are NOT in {}'.format(too_much, incorrect[0], sys.argv[1], sys.argv[2])
