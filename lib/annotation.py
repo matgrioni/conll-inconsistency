@@ -15,7 +15,7 @@ class Annotation(object):
     # A line in the annotation file is a line that can be annotated.
     # Basically this lines that are not headers, lemma pairs or
     # newlines.
-    LINE_REGEX = '^\t(context|nil) \| (.+) at (\d+)(\s+(y|n))?\n$'
+    LINE_REGEX = '^\t(context|nil) \| (.+) at (\d+)(\s+(y|n)\s*)?\n$'
 
     def __init__(self):
         self.annotations = defaultdict(list)
