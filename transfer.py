@@ -27,10 +27,9 @@ source_ann.from_filename(source_filename)
 dest_ann = Annotation()
 dest_ann.from_filename(dest_filename)
 
-results = transfer_downstream(source_ann, dest_ann)
-dest_ann.output(dest_filename)
-
 for lemmas, occurences in source_ann.annotations.items():
     for o in occurences:
         if o.is_annotated():
             dest_ann.set_line(lemmas, o, o.ann)
+
+dest_ann.output(dest_filename)
