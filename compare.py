@@ -45,7 +45,19 @@ total = [0, 0]
 annotated = [0, 0]
 correct = [0, 0]
 
+lemmas_total = [0, 0, False]
+lemmas_annotated = [0, 0, False, False]
+lemmas_incorrect = [0, 0, False, False]
+
 for lemmas, occurrences in first.annotations.items():
+    lemmas_total[2] = False
+    lemmas_annotated[2] = False
+    lemmas_annotated[3] = False
+    lemmas_incorrect[2] = False
+    lemmas_incorrect[3] = False
+
+    lemmas_total[0] += 1
+
     for occ in occurrences:
         total[0] += 1
 
@@ -53,23 +65,43 @@ for lemmas, occurrences in first.annotations.items():
         if shared:
             total[1] += 1
 
+            if not lemmas_total[2]:
+                lemmas_total[2] = True
+                lemmas_total[1] += 1
+
         if occ.is_annotated():
+            if not lemmas_annotated[2]:
+                lemmas_annotated[2] = True
+                lemmas_annotated[0] += 1
+
             annotated[0] += 1
             if occ.correct_in_corpus():
                 correct[0] += 1
+            elif not lemmas_incorrect[2]:
+                lemmas_incorrect[2] = True
+                lemmas_incorrect[0] += 1
 
             if shared:
-                annotated[1] += 1
+                if not lemmas_annotated[3]:
+                    lemmas_annotated[3] = True
+                    lemmas_annotated[1] += 1
 
+                annotated[1] += 1
                 if occ.correct_in_corpus():
                     correct[1] += 1
+                elif not lemmas_incorrect[3]:
+                    lemmas_incorrect[3] = True
+                    lemmas_incorrect[1] += 1
 
 incorrect = [annotated[0] - correct[0], annotated[1] - correct[1]]
 left_out = correct[0] - correct[1]
 too_much = incorrect[0] - incorrect[1]
+
+left_out_lemma = lemmas_incorrect[0] - lemmas_incorrect[1]
 
 print '{} / {} of occurrences are annotated in {}'.format(annotated[0], total[0], sys.argv[1])
 print '{} / {} of occurences in {} are in also {}'.format(total[1], total[0], sys.argv[1], sys.argv[2])
 print '{} / {} of annotated occurences in {} are also in {}'.format(annotated[1], annotated[0], sys.argv[1], sys.argv[2])
 print '{} / {} of annotated occurences in {} NOT in {} are correct in the original corpus'.format(left_out, annotated[0] - annotated[1], sys.argv[1], sys.argv[2])
 print '{} / {} of incorrect occurences in {} are NOT in {}'.format(too_much, incorrect[0], sys.argv[1], sys.argv[2])
+print '{} / {} of lemmas with an incorrect occurrence in {} are NOT in {}'.format(left_out_lemma, lemmas_incorrect[0], sys.argv[1], sys.argv[2])
