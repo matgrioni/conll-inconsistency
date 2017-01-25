@@ -50,9 +50,6 @@ filename = sys.argv[1]
 ann = Annotation()
 ann.from_filename(filename)
 
-accounted = 0
-acc_flag = False
-
 inconsistent_tokens = 0
 total_tokens = 0
 
@@ -77,10 +74,6 @@ for lemma_pair, occurrences in ann.annotations.items():
             if not counted_lemma:
                 counted_lemma = True
                 annotated_lemmas += 1
-
-            if not acc_flag:
-                acc_flag = True
-                accounted += 1
 
             total_tokens += 1
 
@@ -141,7 +134,11 @@ if freq_flag:
     for num, freq in freqs.items():
         print '{}\t{}'.format(num, freq)
 
-if accounted > 0:
+print 'Number of inconsistencies: {}'.format(ann.size)
+print 'Number of which were nil: {}'.format(ann.nils)
+print 'Number of which were context: {}'.format(ann.contexts)
+
+if total_tokens > 0:
     print 'Percent of all occurences that were correct'
     print '{} / {} = {}%'.format(total_tokens - inconsistent_tokens, total_tokens, (total_tokens - inconsistent_tokens) / total_tokens * 100)
 
@@ -150,6 +147,3 @@ if accounted > 0:
 
     print 'Percent of all lemma pairs with at least one incorrect occurrence'
     print '{} / {} = {}%'.format(inconsistent_lemmas, annotated_lemmas, inconsistent_lemmas / annotated_lemmas * 100)
-else:
-    print 'No instances were counted because they all had at least'
-    print 'one unsure or one unmarked token'

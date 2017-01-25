@@ -16,11 +16,15 @@ class Annotation(object):
     # Basically this lines that are not headers, lemma pairs or
     # newlines.
     LINE_REGEX = '^\t(context|nil) \| (.+) at (\d+)(\s+(y|n)\s*)?\n$'
+    CONTEXT_INCONS = 'context'
+    NIL_INCONS = 'nil'
 
     def __init__(self):
         self.annotations = defaultdict(list)
         self.lemmas = 0
         self.size = 0
+        self.nils = 0
+        self.contexts = 0
 
     def from_filename(self, filename):
         with open(filename, 'r') as f:
@@ -35,6 +39,11 @@ class Annotation(object):
 
                     line_ann = AnnotationLine(m.group(1), dep_t, l_n, m.group(5))
                     self.annotations[cur_lemmas].append(line_ann)
+
+                    if m.group(1) == Annotation.CONTEXT_INCONS:
+                        self.contexts += 1
+                    elif m.group(1) == Annotation.NIL_INCONS:
+                        self.nils += 1
                     self.size += 1
                 elif line not in ['\n', '\r\n']:
                     # This line is starting off a pair of lemmas, so split
