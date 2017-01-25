@@ -1,0 +1,17 @@
+module confluent name_to_fixed {
+    rule r {
+        match {
+            GOV -[name]-> DEP
+        }
+        commands {
+            del_edge GOV -[name]-> DEP;
+            add_edge GOV -[flat:name]-> DEP;
+        }
+    }
+}
+
+sequences {
+    main {
+        name_to_fixed
+    }
+}
