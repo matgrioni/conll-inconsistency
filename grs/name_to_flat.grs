@@ -1,4 +1,4 @@
-module confluent name_to_fixed {
+module confluent name_to_flat {
     rule r {
         match {
             GOV -[name]-> DEP
@@ -12,6 +12,6 @@ module confluent name_to_fixed {
 
 sequences {
     main {
-        name_to_fixed
+        name_to_flat
     }
 }
