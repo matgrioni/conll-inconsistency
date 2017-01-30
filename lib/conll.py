@@ -43,6 +43,15 @@ class TreeBank(object):
 
             idx += 1
 
+    def output(self, filename):
+        with open(filename, 'w') as f:
+            for sentence in self:
+                f.write('\n'.join(sentence.lines))
+
+                # Use two newlines to separate consecutive sentences and also
+                # for whitespace between sentences.
+                f.write('\n\n')
+
     def __iter__(self):
         for sentence in self.sentences:
             yield sentence
@@ -59,15 +68,15 @@ class Sentence(object):
     def __init__(self, annotation, line_num=-1):
         self.line_num = line_num
         self.words = []
-        lines = annotation.splitlines()
+        self.lines = annotation.splitlines()
 
-        id_match = re.match(Sentence.SENTENCE_ID_REGEX, lines[0])
+        id_match = re.match(Sentence.SENTENCE_ID_REGEX, self.lines[0])
         if id_match:
             self.id = id_match.group(1)
         else:
             self.id = None
 
-        for i, line in enumerate(lines):
+        for i, line in enumerate(self.lines):
             if self._is_word_line(line):
                 word_line = -1 if line_num == -1 else self.line_num + i
                 self.words.append(Word(line, word_line))
@@ -77,8 +86,8 @@ class Sentence(object):
         # TODO: Comment that for accurate sentence text need space after
         # ':'
         try:
-            marker_index = lines[1].index(Sentence.SENTENCE_TEXT_MARKER)
-            self.text = lines[1][marker_index + 2:]
+            marker_index = self.lines[1].index(Sentence.SENTENCE_TEXT_MARKER)
+            self.text = self.lines[1][marker_index + 2:]
         except:
             self.text = ""
 
