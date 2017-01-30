@@ -43,15 +43,6 @@ class TreeBank(object):
 
             idx += 1
 
-    def output(self, filename):
-        with open(filename, 'w') as f:
-            for sentence in self:
-                f.write('\n'.join(sentence.lines))
-
-                # Use two newlines to separate consecutive sentences and also
-                # for whitespace between sentences.
-                f.write('\n\n')
-
     def __iter__(self):
         for sentence in self.sentences:
             yield sentence
@@ -142,9 +133,13 @@ class Word(object):
         self.features = fields[4]
         self.dep_index = int(fields[6])
         self.dep = fields[7]
+        self.deps = fields[8]
+        self.misc = fields[9]
 
     def __str__(self):
         return self.phon
 
     def __repr__(self):
-        return self.phon
+        items = [self.index, self.phon, self.lemma, self.pos, self.features,
+                 self.dep_index, self.dep, self.deps, self.misc]
+        return Word.FIELD_DELIMITER.join(items)
