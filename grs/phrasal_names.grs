@@ -1,0 +1,17 @@
+module confluent phrasal_names {
+    rule r {
+        match {
+            A [cat=PROPN];
+            B [cat=PROPN];
+            C [phon="de"];
+            A -[nmod]-> B;
+            B -[case]-> C;
+        }
+    }
+}
+
+sequences {
+    main {
+        phrasal_names
+    }
+}
