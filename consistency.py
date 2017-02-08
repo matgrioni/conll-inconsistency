@@ -23,7 +23,8 @@ from lib.conll import *
 # present for NIL to non-NIL comparisons.
 DEPENDENCY_CONTEXT = ('-d', '-dependency')
 INTERNAL_CONTEXT = ('-i', '-internal')
-NOT_INCLUDE_NIL = ('-n', '-notnil')
+NOT_INCLUDE_NIL = ('-nn', '-notnil')
+NO_WORD_ORDER = ('-nw', '-nowordorder')
 
 LEFT = "L"
 RIGHT = "R"
@@ -82,6 +83,7 @@ if len(sys.argv) < 2:
 dep_heuristic = reduce(lambda acc, option: acc or option in sys.argv, DEPENDENCY_CONTEXT, False)
 internal_ctx_pres = reduce(lambda acc, option: acc or option in sys.argv, INTERNAL_CONTEXT, False)
 include_nil = not(reduce(lambda acc, option: acc or option in sys.argv, NOT_INCLUDE_NIL, False))
+no_word_order = reduce(lambda acc, option: acc or option in sys.argv, NO_WORD_ORDER, False)
 
 # Find all relations in the treebank and then consolidate the ones
 # with identical types but different labels.
@@ -143,6 +145,12 @@ for related_lemmas, lemma_variations in shuffled_dict(relations):
     for i, dep1 in enumerate(deps):
         for dep2 in deps[i + 1:]:
             if dep1 != (NIL, NIL) and dep2 != (NIL, NIL):
+                # If word order does not make for an inconsistency, then check
+                # if the relation type is the same, in which case, do not check
+                # more for inconsistencies between these dependency types.
+                if no_word_order and dep1[1] == dep[2]:
+                    break
+
                 for variation1 in lemma_variations[dep1]:
                     for variation2 in lemma_variations[dep2]:
                         # NOTE: The following if statements is for once sent-ids are more common.
