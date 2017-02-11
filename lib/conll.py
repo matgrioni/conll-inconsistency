@@ -130,7 +130,7 @@ class Word(object):
         self.phon = fields[1]
         self.lemma = fields[2]
         self.pos = fields[3]
-        self.features = fields[4]
+        self.features = fields[5]
         self.dep_index = int(fields[6])
         self.dep = fields[7]
         self.deps = fields[8]
