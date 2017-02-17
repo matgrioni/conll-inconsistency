@@ -16,24 +16,27 @@ import sys
 
 from collections import defaultdict, namedtuple
 from lib.conll import *
+from lib.options import OptionsProcessor
 
 # Define constants that will be used in the script. Among them being
 # the direction of the relation and the different command line
 # options for heuristics. Another is if the internal context must be
 # present for NIL to non-NIL comparisons.
-DEPENDENCY_CONTEXT = ('-d', '--dependency')
-INTERNAL_CONTEXT = ('-i', '--internal')
-NOT_INCLUDE_NIL = ('-nn', '--notnil')
-NO_WORD_ORDER = ('-nw', '--nowordorder')
-POS_CATEGORY = ('-p', '--pos')
+op = OptionsProcessor()
+op.add_option(('-h', '--head'), 'head_heuristic')
+op.add_option(('-i', '--internal'), 'internal_ctx')
+op.add_option(('-nn', '--notnil'), 'no_nil')
+op.add_option(('-nw', '--nowordorder'), 'no_word_order')
+op.add_option(('-p', '--pos'), 'pos')
+op.add_option(('-wl', '--with-lemmas'), 'with_lemmas')
 
 LEFT = "L"
 RIGHT = "R"
 NIL = "NIL"
 NIL_RELATION = (NIL, NIL)
 
-ContextVariation = namedtuple('ContextVariation', ['internal_ctx', 'external_ctx', 'head_dep', 'line_numbers'])
-Error = namedtuple('Error', ['dep', 'line_numbers'])
+ContextVariation = namedtuple('ContextVariation', ['words', 'internal_ctx', 'external_ctx', 'head_dep', 'line_numbers'])
+Error = namedtuple('Error', ['words', 'dep', 'line_numbers'])
 
 # Get the external context of the two words in the given sentence as a
 # binary tuple of lemmas. The two words should be in the sentence and
@@ -80,12 +83,7 @@ def shuffled_dict(d):
 
 if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided')
-
-dep_heuristic = reduce(lambda acc, option: acc or option in sys.argv, DEPENDENCY_CONTEXT, False)
-internal_ctx_pres = reduce(lambda acc, option: acc or option in sys.argv, INTERNAL_CONTEXT, False)
-include_nil = not(reduce(lambda acc, option: acc or option in sys.argv, NOT_INCLUDE_NIL, False))
-no_word_order = reduce(lambda acc, option: acc or option in sys.argv, NO_WORD_ORDER, False)
-pos_category = reduce(lambda acc, option: acc or option in sys.argv, POS_CATEGORY, False)
+op.process(sys.argv)
 
 # Find all relations in the treebank and then consolidate the ones
 # with identical types but different labels.
@@ -102,7 +100,7 @@ for sentence in t:
         word1 = sentence.words[index_pair[0]]
         word2 = sentence.words[index_pair[1]]
 
-        if pos_category:
+        if op.pos_present():
             keys = frozenset((':'.join((word1.pos, word1.features)),
                              ':'.join((word2.pos, word2.features))))
         else:
@@ -113,10 +111,10 @@ for sentence in t:
 
         if word1.dep_index != word2.index and word2.dep_index != word1.index:
             if internal_ctx:
-                context = ContextVariation(internal_ctx, external_ctx, NIL, word1.line_num)
+                context = ContextVariation((word1, word2), internal_ctx, external_ctx, NIL, word1.line_num)
                 relations[keys][NIL_RELATION].append(context)
         else:
-            if (internal_ctx_pres and internal_ctx) or not internal_ctx_pres:
+            if (op.internal_ctx_present() and internal_ctx) or not op.internal_ctx_present():
                 if word1.dep_index == word2.index:
                     head = word2
                     child = word1
@@ -125,14 +123,14 @@ for sentence in t:
                     child = word2
 
                 direction = LEFT if head.index < child.index else RIGHT
-                context = ContextVariation(internal_ctx, external_ctx, head.dep, (word1.line_num, word2.line_num))
+                context = ContextVariation((word1, word2), internal_ctx, external_ctx, head.dep, (word1.line_num, word2.line_num))
 
                 relations[keys][(direction, child.dep)].append(context)
 
 errors = defaultdict(lambda: defaultdict(set))
 
 for related_keys, key_variations in shuffled_dict(relations):
-    if include_nil:
+    if not op.no_nil_present():
         # First check for NIL errors. This is where for a pair of lemmas
         # they appear as NIL in one situation and as related in another
         # and they have the same internal context in both occurences.
@@ -142,8 +140,8 @@ for related_keys, key_variations in shuffled_dict(relations):
                 if dep != (NIL, NIL):
                     for variation in variations:
                         if variation.internal_ctx == nil_variation.internal_ctx:
-                            errors[related_keys][Error(dep, variation.line_numbers)].add('nil')
-                            errors[related_keys][Error((NIL, NIL), nil_variation.line_numbers)].add('nil')
+                            errors[related_keys][Error(variation.words, dep, variation.line_numbers)].add('nil')
+                            errors[related_keys][Error(nil_variation.words, (NIL, NIL), nil_variation.line_numbers)].add('nil')
 
     # Then check for errors using the non-fringe heuristic. This
     # checks between non-NIL relations. If the external contexts
@@ -156,7 +154,7 @@ for related_keys, key_variations in shuffled_dict(relations):
                 # If word order does not make for an inconsistency, then check
                 # if the relation type is the same, in which case, do not check
                 # more for inconsistencies between these dependency types.
-                if no_word_order and dep1[1] == dep2[1]:
+                if op.no_word_order_present() and dep1[1] == dep2[1]:
                     break
 
                 for variation1 in key_variations[dep1]:
@@ -166,23 +164,26 @@ for related_keys, key_variations in shuffled_dict(relations):
                         if variation1.external_ctx == variation2.external_ctx:
                             # Lastly, is the check for head dependencies which is on top of the external context.
                             # TODO: Shorter lines
-                            if dep_heuristic:
+                            if op.head_heuristic_present():
                                 if variation1.head_dep == variation2.head_dep:
-                                    errors[related_keys][Error(dep1, variation1.line_numbers)].add('context')
-                                    errors[related_keys][Error(dep2, variation2.line_numbers)].add('context')
+                                    errors[related_keys][Error(variation1.words, dep1, variation1.line_numbers)].add('context')
+                                    errors[related_keys][Error(variation2.words, dep2, variation2.line_numbers)].add('context')
                             else:
-                                errors[related_keys][Error(dep1, variation1.line_numbers)].add('context')
-                                errors[related_keys][Error(dep2, variation2.line_numbers)].add('context')
+                                errors[related_keys][Error(variation1.words, dep1, variation1.line_numbers)].add('context')
+                                errors[related_keys][Error(variation2.words, dep2, variation2.line_numbers)].add('context')
 
 # Print out the error results
 for keys, key_errors in errors.items():
     if len(keys) > 1:
         print ', '.join(keys)
     else:
-        l, = keys
-        print '{}, {}'.format(l, l)
+        k, = keys
+        print '{}, {}'.format(k, k)
     for error, types in key_errors.items():
         dep = ', '.join(error.dep)
-        print '\t{} | {} at {}'.format(','.join(types), dep, error.line_numbers)
+        if op.with_lemmas_present():
+            print '\t{} | {} with ({}, {}) at {}'.format(','.join(types), dep, str(error.words[0]), str(error.words[1]), error.line_numbers)
+        else:
+            print '\t{} | {} at {}'.format(','.join(types), dep, error.line_numbers)
 
     print
