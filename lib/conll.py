@@ -140,6 +140,7 @@ class Word(object):
         return self.phon
 
     def __repr__(self):
-        items = [self.index, self.phon, self.lemma, self.pos, self.features,
-                 self.dep_index, self.dep, self.deps, self.misc]
+        items = [str(self.index), self.phon, self.lemma, self.pos,
+                 self.features, str(self.dep_index), self.dep, self.deps,
+                 self.misc]
         return Word.FIELD_DELIMITER.join(items)
