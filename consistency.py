@@ -111,7 +111,7 @@ for sentence in t:
 
         if word1.dep_index != word2.index and word2.dep_index != word1.index:
             if internal_ctx:
-                context = ContextVariation((word1, word2), internal_ctx, external_ctx, NIL, word1.line_num)
+                context = ContextVariation((word1, word2), internal_ctx, external_ctx, NIL, (word1.line_num, word2.line_num))
                 relations[keys][NIL_RELATION].append(context)
         else:
             if (op.internal_ctx_present() and internal_ctx) or not op.internal_ctx_present():
@@ -128,7 +128,6 @@ for sentence in t:
                 relations[keys][(direction, child.dep)].append(context)
 
 errors = defaultdict(lambda: defaultdict(set))
-
 for related_keys, key_variations in shuffled_dict(relations):
     if not op.no_nil_present():
         # First check for NIL errors. This is where for a pair of lemmas
