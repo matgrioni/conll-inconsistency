@@ -53,6 +53,7 @@ module confluent propn_to_noun {
     Organisation##organisation#Fem#Sing
     Compagnie##compagnie#Fem#Sing
     Commerce##commerce#Masc#Sing
+    État##état#Masc#Sing
 
     #END
 }
