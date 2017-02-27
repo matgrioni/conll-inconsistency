@@ -27,7 +27,7 @@ op.add_option(('-h', '--head'), 'head_heuristic')
 op.add_option(('-i', '--internal'), 'internal_ctx')
 op.add_option(('-nn', '--notnil'), 'no_nil')
 op.add_option(('-nw', '--nowordorder'), 'no_word_order')
-op.add_option(('-p', '--pos'), 'pos')
+op.add_option(('-p', '--morph'), 'morph')
 op.add_option(('-wl', '--with-lemmas'), 'with_lemmas')
 
 LEFT = "L"
@@ -100,7 +100,7 @@ for sentence in t:
         word1 = sentence.words[index_pair[0]]
         word2 = sentence.words[index_pair[1]]
 
-        if op.pos_present():
+        if op.morph_present():
             keys = frozenset((':'.join((word1.pos, word1.features)),
                              ':'.join((word2.pos, word2.features))))
         else:
