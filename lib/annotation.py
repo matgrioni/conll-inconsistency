@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from recordclass import recordclass
 
-AnnotationLineInternal = recordclass('AnnotationLineInternal', ['type', 'dep', 'line_num', 'ann'])
+AnnotationLineInternal = recordclass('AnnotationLineInternal', ['type', 'dep', 'line_nums', 'ann'])
 class AnnotationLine(AnnotationLineInternal):
     def is_annotated(self):
         return self.ann is not None
@@ -15,7 +15,8 @@ class Annotation(object):
     # A line in the annotation file is a line that can be annotated.
     # Basically this lines that are not headers, lemma pairs or
     # newlines.
-    LINE_REGEX = '^\t(context|nil) \| (.+) at (\d+)(\s+(y|n)\s*)?\n$'
+    LINE_REGEX = '^\t(context|nil) \| (.+) at \((\d+), (\d+)\)(\s+(y|n)\s*)?\n$'
+    EXPLICIT_LINE_REGEX = '^\t(context|nil) \| (.+) at \((\d+), (\d+)\)(\s+(y|n)\s*)?\n$'
     CONTEXT_INCONS = 'context'
     NIL_INCONS = 'nil'
 
@@ -35,9 +36,9 @@ class Annotation(object):
                 m = re.match(Annotation.LINE_REGEX, line)
                 if m:
                     dep_t = tuple(m.group(2).split(', '))
-                    l_n = int(m.group(3))
+                    ls_n = (int(m.group(3)), int(m.group(4)))
 
-                    line_ann = AnnotationLine(m.group(1), dep_t, l_n, m.group(5))
+                    line_ann = AnnotationLine(m.group(1), dep_t, ls_n, m.group(5))
                     self.annotations[cur_lemmas].append(line_ann)
 
                     if m.group(1) == Annotation.CONTEXT_INCONS:
@@ -73,7 +74,7 @@ class Annotation(object):
 
     def _find_line(self, lemmas, l):
         for line in self.annotations[lemmas]:
-            if line.type == l.type and line.dep == l.dep and line.line_num == l.line_num:
+            if line.type == l.type and line.dep == l.dep and line.line_nums == l.line_nums:
                 return line
 
         return None
@@ -91,9 +92,9 @@ class Annotation(object):
                     for o in occurences:
                         dep_s = ', '.join(o.dep)
                         if o.is_annotated():
-                            line = '\t{} | {} at {} {}\n'.format(o.type, dep_s, o.line_num, o.ann)
+                            line = '\t{} | {} at {} {}\n'.format(o.type, dep_s, o.line_nums, o.ann)
                         else:
-                            line = '\t{} | {} at {}\n'.format(o.type, dep_s, o.line_num)
+                            line = '\t{} | {} at {}\n'.format(o.type, dep_s, o.line_nums)
 
                         f.write(line)
 
