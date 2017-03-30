@@ -67,10 +67,16 @@ class Sentence(object):
         else:
             self.id = None
 
+        self.indexes = {}
+        word_index = 0
         for i, line in enumerate(self.lines):
             if self._is_word_line(line):
                 word_line = -1 if line_num == -1 else self.line_num + i
-                self.words.append(Word(line, word_line))
+                w = Word(line, word_line)
+                self.indexes[w.index] = word_index
+                self.words.append(w)
+
+                word_index += 1
 
         # This is to handle the cases where the format is different
         # from the French corpus.
@@ -85,8 +91,18 @@ class Sentence(object):
     def _is_word_line(self, line):
         return line[0] != Sentence.COMMENT_MARKER and not re.match(Sentence.CONTRACTION_REGEX, line)
 
+    # Only accepts strings and slice objects for getitem. This is because there
+    # are decimal indexes in UD v2. So this is best handled by a string which
+    # is mapped to an underlying integer for the word list.
     def __getitem__(self, key):
-        return self.words[key]
+        if isinstance(key, slice):
+            start = self.indexes[key.start]
+            stop = self.indexes[key.stop]
+            return self.words[start : stop]
+        elif isinstance(key, str):
+            return self.words[self.indexes[key]]
+        elif isinstance(key, int):
+            return self.words[key]
 
     def __len__(self):
         return len(self.words)
@@ -126,12 +142,12 @@ class Word(object):
         self.line_num = line_num
         fields = annotation.split(Word.FIELD_DELIMITER)
 
-        self.index = int(fields[0])
+        self.index = fields[0]
         self.phon = fields[1]
         self.lemma = fields[2]
         self.pos = fields[3]
         self.features = fields[5]
-        self.dep_index = int(fields[6])
+        self.dep_index = fields[6]
         self.dep = fields[7]
         self.deps = fields[8]
         self.misc = fields[9]
@@ -140,7 +156,6 @@ class Word(object):
         return self.phon
 
     def __repr__(self):
-        items = [str(self.index), self.phon, self.lemma, self.pos,
-                 self.features, str(self.dep_index), self.dep, self.deps,
-                 self.misc]
+        items = [self.index, self.phon, self.lemma, self.pos, self.features,
+                 self.dep_index, self.dep, self.deps, self.misc]
         return Word.FIELD_DELIMITER.join(items)

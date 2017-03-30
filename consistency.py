@@ -42,16 +42,15 @@ Error = namedtuple('Error', ['words', 'dep', 'line_numbers'])
 # binary tuple of lemmas. The two words should be in the sentence and
 # word1 appears before word2 in the sentence.
 def calc_external_context(sentence, word1, word2):
-    if word1.index < word2.index:
+    if sentence.indexes[word1.index] < sentence.indexes[word2.index]:
         prev = word1
         after = word2
     else:
         prev = word2
         after = word1
 
-    # Remember that the Word object index is 1-based not 0-based.
-    ctx_index1 = prev.index - 2
-    ctx_index2 = after.index
+    ctx_index1 = sentence.indexes[prev.index] - 1
+    ctx_index2 = sentence.indexes[after.index] + 1
 
     if ctx_index1 > -1:
         ctx1 = sentence[ctx_index1].lemma
@@ -66,8 +65,11 @@ def calc_external_context(sentence, word1, word2):
     return (ctx1, ctx2)
 
 def calc_internal_context(sentence, word1, word2):
-    words = sentence[word1.index : word2.index - 1] or sentence[word2.index : word1.index - 1]
-    return map(lambda word: word.lemma, words)
+    # Get the list of words including the first word then trim it off.
+    words = sentence[word1.index : word2.index] or sentence[word2.index : word1.index]
+    trimmed = words[1:]
+
+    return map(lambda word: word.lemma, trimmed)
 
 def shuffled_dict(d):
     items = d.items()
@@ -97,8 +99,8 @@ t.from_filename(filename)
 for sentence in t:
     index_pairs = itertools.combinations(range(len(sentence.words)), 2)
     for index_pair in index_pairs:
-        word1 = sentence.words[index_pair[0]]
-        word2 = sentence.words[index_pair[1]]
+        word1 = sentence[index_pair[0]]
+        word2 = sentence[index_pair[1]]
 
         if op.morph_present():
             keys = frozenset((':'.join((word1.pos, word1.features)),
@@ -122,7 +124,7 @@ for sentence in t:
                     head = word1
                     child = word2
 
-                direction = LEFT if head.index < child.index else RIGHT
+                direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
                 context = ContextVariation((word1, word2), internal_ctx, external_ctx, head.dep, (word1.line_num, word2.line_num))
 
                 relations[keys][(direction, child.dep)].append(context)
