@@ -12,13 +12,16 @@ import itertools
 
 from lib.conll import *
 
-NIL = 'nil'
+LEFT = 'left'
+RIGHT = 'right'
+TOTAL = 'total'
 
-# Context is a tuple to represent the important contextual features that two
+# Nucleus is a tuple to represent the important contextual features that two
 # lemmas can occur with. This includes the immediate neighboring words outside
 # of the pair (external context), words inside the pair (internal context), and
 # the dependency relation that the head of the pair has to its respective head.
-Context = namedtuple('Context', ['internal_ctx', 'external_ctx', 'head_dep'])
+# A Nucleus therefore can be thought of as an occurence of words in the corpus.
+Nucleus = namedtuple('Nucleus', ['lemmas', 'internal_ctx', 'external_ctx', 'head_dep'])
 
 # Finds the external context around these two words as a 2-tuple. The first item
 # of the tuple is the external lemma before the first word in the sentence. The
@@ -77,7 +80,12 @@ t.from_filename(sys.argv[0])
 automatic_t = TreeBank()
 automatic_t.from_filename(sys.argv[1]) 
 
-# Construct the nuclei relations for the automatically generated TreeBank.
+# Construct the nuclei relations for the automatically generated TreeBank. The
+# organization of this structure is for the first level to be a Nucleus tuple
+# which consists of a lemma pair, internal and external context and a head
+# dependency. The second level is the relationship between the lemmas in the
+# nucleus. The separation of these two features allow for nuclei to be compared
+# based on the relationship between the lemmas while context is fixed.
 auto_nuclei = defaultdict(lambda: defaultdict(int))
 
 for sentence in automatic_t:
@@ -86,21 +94,23 @@ for sentence in automatic_t:
         word1 = sentence[index_pair[0]]
         word2 = sentence[index_pair[1]]
 
-        words = frozenset((word1, word2))
-
-        internal = _internal_context(sentence, word1, word2)
-        external = _external_context(sentence, word1, word2)
-
         if word1.index == word2.dep_index or word2.index == word1.dep_index:
+            lemmas = frozenset((word1.lemma, word2.lemma))
+
+            internal = _internal_context(sentence, word1, word2)
+            external = _external_context(sentence, word1, word2)
+
+
             if word1.index == word2.dep_index:
                 head = word1
+                child = word2
             else:
                 head = word2
+                child = word1
 
-            context = Context(internal, external, head)
-        else:
-            context = Context(internal, external, NIL)
+            nucleus = Nucleus(lemmas, internal, external, head.dep)
+            direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
+            relationship = (direction, child.dep)
 
-        auto_nuclei[(word1.lemma, word2.lemma)][context] += 1
-
-
+            auto_nuclei[nucleus][relationship] += 1
+            auto_nuclei[nucleus][TOTAL] += 1
