@@ -9,8 +9,11 @@
 
 from collections import defaultdict, namedtuple
 import itertools
+import os
 
 from lib.conll import *
+
+import numpy
 
 LEFT = 'left'
 RIGHT = 'right'
@@ -69,70 +72,85 @@ def _internal_context(sentence, word1, word2):
 #
 # Main script.
 #
+# The first argument should be the filename of the UD treebank file we are
+# trying to find incorrect annotations on. The second argument is a folder with
+# at least one file that is a treebank. The third argument is optional. It is
+# how many treebanks to randomnly use from the folder for the correctness check.
+# If this argument is omitted then all files in the folder specified in the
+# second argument are used.
+#
 ################################################################################
 
 if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided.')
 
-# The first argument is the filename for the UD TreeBank. The second argument
-# is for the shared CONLL task TreeBank.
+# The first argument is the filename for the UD TreeBank. The second argument is
+# for the shared CONLL task TreeBank.
 t = TreeBank()
 t.from_filename(sys.argv[0])
-# NOTE: This will most certainly be too big. Can possibly random sample from
-# a folder or create inverted table?
-automatic_t = TreeBank()
-automatic_t.from_filename(sys.argv[1]) 
 
-# Construct the nuclei relations for the automatically generated TreeBank. The
-# organization of this structure is for the first level to be a set of lemmas.
-# The second level is a Context tuple which consists of the internal and
-# external context along with the dependency relation of the head of the
-# governor of the set of lemmas. The third level is the relationship between
-# these two lemmas and the direction of the head. Note that the actual head of
-# the lemmas is not known, only that the two are related. This probably does not
-# make a difference since it actually helps to catch errors if they are related
-# to the direction of the relationship.
-#
-# There are three special fields in this
-# dict. Once the lemma and context are specified, there is also a TOTAL field
-# which is the number of total lemma pairs with such a context, a MAX field
-# which is the number of times the most frequent relationship happened,
-# and MAX_RELATION which is the most frequency relationship.
-auto_nuclei = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+filenames = os.listdir(sys.argv[1])
+if sys.argv < 3:
+    s = len(filenames)
+else:
+    s = sys.argv[2]
+random_files = numpy.random.choice(filenames, size=(s), replace=False)
 
-for sentence in automatic_t:
-    # NOTE: This efficiency could be improved by traversing tree instead of
-    # going through every pair of words.
-    index_pairs = itertools.combinations(range(len(sentence.words)), 2)
-    for index_pair in index_pairs:
-        word1 = sentence[index_pair[0]]
-        word2 = sentence[index_pair[1]]
+for random_file in random_files:
+    print random_file
+    automatic_t = TreeBank()
+    automatic_t.from_filename(random_file)
 
-        if word1.index == word2.dep_index or word2.index == word1.dep_index:
-            lemmas = frozenset((word1.lemma, word2.lemma))
+    # Construct the nuclei relations for the automatically generated TreeBank.
+    # The organization of this structure is for the first level to be a set of
+    # lemmas. The second level is a Context tuple which consists of the internal
+    # and external context along with the dependency relation of the head of the
+    # governor of the set of lemmas. The third level is the relationship between
+    # these two lemmas and the direction of the head. Note that the actual head
+    # of the lemmas is not known, only that the two are related. This probably
+    # does not make a difference since it actually helps to catch errors if they
+    # are related to the direction of the relationship.
+    #
+    # There are three special fields in this
+    # dict. Once the lemma and context are specified, there is also a TOTAL
+    # field which is the number of total lemma pairs with such a context, a MAX
+    # field which is the number of times the most frequent relationship happened
+    # and MAX_RELATION which is the most frequency relationship.
+    auto_nuclei = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
-            internal = _internal_context(sentence, word1, word2)
-            external = _external_context(sentence, word1, word2)
+    for sentence in automatic_t:
+        # NOTE: This efficiency could be improved by traversing tree instead of
+        # going through every pair of words.
+        index_pairs = itertools.combinations(range(len(sentence.words)), 2)
+        for index_pair in index_pairs:
+            word1 = sentence[index_pair[0]]
+            word2 = sentence[index_pair[1]]
 
-            if word1.index == word2.dep_index:
-                head = word1
-                child = word2
-            else:
-                head = word2
-                child = word1
+            if word1.index == word2.dep_index or word2.index == word1.dep_index:
+                lemmas = frozenset((word1.lemma, word2.lemma))
 
-            context = Context(internal, external, head.dep)
-            direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
-            relationship = (direction, child.dep)
+                internal = _internal_context(sentence, word1, word2)
+                external = _external_context(sentence, word1, word2)
 
-            auto_nuclei[lemmas][context][relationship] += 1
-            auto_nuclei[lemmas][context][TOTAL] += 1
+                if word1.index == word2.dep_index:
+                    head = word1
+                    child = word2
+                else:
+                    head = word2
+                    child = word1
 
-            # Update the MAX and MAX_RELATION as necessary.
-            updated_value = auto_nuclei[lemmas][context][relationship]
-            if updated_value > auto_nuclei[lemmas][context][MAX_VALUE]:
-                auto_nuclei[lemmas][context][MAX_VALUE] = updated_value
-                auto_nuclei[lemmas][context][MAX_RELATION] = relationship
+                context = Context(internal, external, head.dep)
+                direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
+                relationship = (direction, child.dep)
+
+                auto_nuclei[lemmas][context][relationship] += 1
+                auto_nuclei[lemmas][context][TOTAL] += 1
+
+                # Update the MAX and MAX_RELATION as necessary.
+                updated_value = auto_nuclei[lemmas][context][relationship]
+                if updated_value > auto_nuclei[lemmas][context][MAX_VALUE]:
+                    auto_nuclei[lemmas][context][MAX_VALUE] = updated_value
+                    auto_nuclei[lemmas][context][MAX_RELATION] = relationship
 
 errors = defaultdict(lambda: defaultdict(list))
 
@@ -165,3 +183,10 @@ for sentence in t:
             if relationship != auto_nuclei[lemmas][context][MAX_RELATION]:
                 e = Error((word1.line_num, word2.line_num), relationship)
                 errors[lemmas][context].append(e)
+
+for lemmas, value in errors.items():
+    print lemmas
+
+    for context, errors in value.items():
+        for e in error:
+            print '\t{}\t{}\t{}'.format(*e)
