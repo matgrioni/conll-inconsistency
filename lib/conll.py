@@ -121,8 +121,8 @@ class SentenceTree(Tree):
         for word in self.sentence:
             deps[word.dep_index].append(word)
 
-        root = deps[0][0]
-        super(Tree, self).__init__(root)
+        root = deps['0'][0]
+        super(SentenceTree, self).__init__(root)
 
         self._construct_tree(self, deps)
 
