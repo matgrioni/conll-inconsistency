@@ -10,6 +10,7 @@
 from collections import defaultdict, namedtuple
 import itertools
 import os
+import sys
 
 from lib.conll import *
 
@@ -81,25 +82,25 @@ def _internal_context(sentence, word1, word2):
 #
 ################################################################################
 
-if len(sys.argv) < 2:
+if len(sys.argv) < 3:
     raise TypeError('Not enough arguments provided.')
 
 # The first argument is the filename for the UD TreeBank. The second argument is
 # for the shared CONLL task TreeBank.
 t = TreeBank()
-t.from_filename(sys.argv[0])
+t.from_filename(sys.argv[1])
 
-filenames = os.listdir(sys.argv[1])
-if sys.argv < 3:
+filenames = os.listdir(sys.argv[2])
+if sys.argv < 4:
     s = len(filenames)
 else:
-    s = sys.argv[2]
+    s = int(sys.argv[3])
 random_files = numpy.random.choice(filenames, size=(s), replace=False)
 
 for random_file in random_files:
     print random_file
     automatic_t = TreeBank()
-    automatic_t.from_filename(random_file)
+    automatic_t.from_filename(sys.argv[2] + '/' + random_file)
 
     # Construct the nuclei relations for the automatically generated TreeBank.
     # The organization of this structure is for the first level to be a set of
