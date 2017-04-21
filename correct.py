@@ -157,18 +157,18 @@ for sentence in t.genr(sys.argv[1]):
             head = tree1.node
             child = tree2.node
 
-                lemmas = frozenset((head.lemma, child.lemma))
+            lemmas = frozenset((head.lemma, child.lemma))
 
-                internal = _internal_context(sentence, head, child)
-                external = _external_context(sentence, head, child)
+            internal = _internal_context(sentence, head, child)
+            external = _external_context(sentence, head, child)
 
-                context = Context(internal, external, head.dep)
-                direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
-                relationship = (direction, child.dep)
+            context = Context(internal, external, head.dep)
+            direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
+            relationship = (direction, child.dep)
 
-                if relationship != auto_nuclei[lemmas][context][MAX_RELATION]:
-                    e = Error((word1.line_num, word2.line_num), relationship)
-                    errors[lemmas][context].append(e)
+            if relationship != auto_nuclei[lemmas][context][MAX_RELATION]:
+                e = Error((head.line_num, child.line_num), relationship)
+                errors[lemmas][context].append(e)
 
 for lemmas, value in errors.items():
     print lemmas
