@@ -174,5 +174,5 @@ for lemmas, value in errors.items():
     print lemmas
 
     for context, errors in value.items():
-        for e in error:
+        for e in errors:
             print '\t{}\t{}\t{}'.format(*e)
