@@ -3,7 +3,34 @@ import re
 
 from tree import *
 
+# TODO: API for TreeBank is getting a little messy and confusing. Try to clean up.
 class TreeBank(object):
+    # Seed a TreeBank object with a filename so that a generator type object can
+    # be created. Rather than reading in the whole file and storing it in memory
+    # before you iterate through. None of the sentences are stored afterward in
+    # the TreeBank.
+    def genr(self, filename):
+        # TODO: Consolidate code between this and from_filename.
+        with open(filename, 'r') as f:
+            lines = []
+            sent_start = 1
+            for i, line in enumerate(f):
+                stripped = line.strip()
+
+                # If the line is not blank then add it to the running
+                # list of lines for the current sentence.
+                if stripped:
+                    lines.append(stripped)
+                else:
+                    # Otherwise, the line is blank and the end of this
+                    # sentence has been reached. So combine the lines
+                    # found for this sentence and create Sentence
+                    # object.
+                    annotation = '\n'.join(lines)
+                    yield Sentence(annotation, sent_start)
+                    sent_start = i + 2
+                    del lines[:]
+
     def from_filename(self, filename):
         self.sentences = []
 

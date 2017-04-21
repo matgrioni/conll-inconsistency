@@ -85,10 +85,6 @@ def _internal_context(sentence, word1, word2):
 if len(sys.argv) < 3:
     raise TypeError('Not enough arguments provided.')
 
-# The first argument is the filename for the UD TreeBank. The second argument is
-# for the shared CONLL task TreeBank.
-t = TreeBank()
-t.from_filename(sys.argv[1])
 
 filenames = os.listdir(sys.argv[2])
 if sys.argv < 4:
@@ -99,8 +95,6 @@ random_files = numpy.random.choice(filenames, size=(s), replace=False)
 
 for random_file in random_files:
     print random_file
-    automatic_t = TreeBank()
-    automatic_t.from_filename(sys.argv[2] + '/' + random_file)
 
     # Construct the nuclei relations for the automatically generated TreeBank.
     # The organization of this structure is for the first level to be a set of
@@ -119,26 +113,21 @@ for random_file in random_files:
     # and MAX_RELATION which is the most frequency relationship.
     auto_nuclei = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
-    for sentence in automatic_t:
-        # NOTE: This efficiency could be improved by traversing tree instead of
-        # going through every pair of words.
-        index_pairs = itertools.combinations(range(len(sentence.words)), 2)
-        for index_pair in index_pairs:
-            word1 = sentence[index_pair[0]]
-            word2 = sentence[index_pair[1]]
+    # Create a generator of the sentences in the TreeBank rather than storing them
+    # in memory.
+    automatic_t = TreeBank()
+    for sentence in automatic_t.genr(sys.argv[2] + '/' + random_file):
+        # TODO: Test that this traversal actually works.
+        tree = SentenceTree(sentence)
+        for tree1 in tree:
+            for tree2 in tree1.children:
+                head = tree1.node
+                child = tree2.node
 
-            if word1.index == word2.dep_index or word2.index == word1.dep_index:
-                lemmas = frozenset((word1.lemma, word2.lemma))
+                lemmas = frozenset((head.lemma, child.lemma))
 
-                internal = _internal_context(sentence, word1, word2)
-                external = _external_context(sentence, word1, word2)
-
-                if word1.index == word2.dep_index:
-                    head = word1
-                    child = word2
-                else:
-                    head = word2
-                    child = word1
+                internal = _internal_context(sentence, head, child)
+                external = _external_context(sentence, head, child)
 
                 context = Context(internal, external, head.dep)
                 direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
@@ -155,35 +144,31 @@ for random_file in random_files:
 
 errors = defaultdict(lambda: defaultdict(list))
 
+
+# Create a generator of the sentences in the TreeBank rather than storing them
+# in memory.
 # NOTE: Is there any way to combine these two loops, seems awfully repetitive.
 # No common code can be put into method? Possibly a generator.
-for sentence in t:
-    # Same note about efficiency.
-    index_pairs = itertools.combinations(range(len(sentence.words)), 2)
-    for index_pair in index_pairs:
-        word1 = sentence[index_pair[0]]
-        word2 = sentence[index_pair[1]]
+t = TreeBank()
+for sentence in t.genr(sys.argv[1]):
+    tree = SentenceTree(sentence)
+    for tree1 in tree:
+        for tree2 in tree1.children:
+            head = tree1.node
+            child = tree2.node
 
-        if word1.index == word2.dep_index or word2.index == word1.dep_index:
-            lemmas = frozenset((word1.lemma, word2.lemma))
+                lemmas = frozenset((head.lemma, child.lemma))
 
-            internal = _internal_context(sentence, word1, word2)
-            external = _external_context(sentence, word1, word2)
+                internal = _internal_context(sentence, head, child)
+                external = _external_context(sentence, head, child)
 
-            if word1.index == word2.dep_index:
-                head = word1
-                child = word2
-            else:
-                head = word2
-                child = word1
+                context = Context(internal, external, head.dep)
+                direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
+                relationship = (direction, child.dep)
 
-            context = Context(internal, external, head.dep)
-            direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
-            relationship = (direction, child.dep)
-
-            if relationship != auto_nuclei[lemmas][context][MAX_RELATION]:
-                e = Error((word1.line_num, word2.line_num), relationship)
-                errors[lemmas][context].append(e)
+                if relationship != auto_nuclei[lemmas][context][MAX_RELATION]:
+                    e = Error((word1.line_num, word2.line_num), relationship)
+                    errors[lemmas][context].append(e)
 
 for lemmas, value in errors.items():
     print lemmas
