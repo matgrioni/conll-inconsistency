@@ -1,3 +1,4 @@
+from collections import defaultdict
 import re
 
 from tree import *
@@ -116,23 +117,22 @@ class Sentence(object):
 class SentenceTree(Tree):
     def __init__(self, sentence):
         self.sentence = sentence
+        deps = defaultdict(list)
         for word in self.sentence:
-            if word.dep_index == 0:
-                super(Tree, self).__init__(word)
-                break
+            deps[word.dep_index].append(word)
 
-        self._construct_tree()
+        root = deps[0][0]
+        super(Tree, self).__init__(root)
 
-    def _construct_tree(self):
-        self._construct_tree_helper(self, 0)
+        self._construct_tree(self, deps)
 
-    def _construct_tree_helper(self, tree, index):
-        child_words = filter(lambda word: word.dep_index == index, self.sentence)
+    def _construct_tree(self, t, deps):
+        next_children = deps[t.node.index]
 
-        for word in child_words:
-            t = Tree(word)
-            self._construct_tree_helper(t, word.index)
-            tree.add_children(t)
+        for child in next_children:
+            next_t = Tree(child)
+            self._construct_tree(next_t, deps)
+            t.add_children(next_t)
 
 class Word(object):
     FIELD_DELIMITER = '\t'
