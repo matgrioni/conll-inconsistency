@@ -22,21 +22,10 @@ from collections import defaultdict, namedtuple
 from lib.conll import *
 from lib.options import OptionsProcessor
 
-# Define constants that will be used in the script. Among them being
-# the direction of the relation and the different command line
-# options for heuristics. Another is if the internal context must be
-# present for NIL to non-NIL comparisons.
-op = OptionsProcessor()
-op.add_option(('-h', '--head'), 'head_heuristic')
-op.add_option(('-i', '--internal'), 'internal_ctx')
-op.add_option(('-nn', '--notnil'), 'no_nil')
-op.add_option(('-nw', '--nowordorder'), 'no_word_order')
-op.add_option(('-p', '--morph'), 'morph')
-op.add_option(('-wl', '--with-lemmas'), 'with_lemmas')
 
-LEFT = "L"
-RIGHT = "R"
-NIL = "NIL"
+LEFT = 'left'
+RIGHT = 'right'
+NIL = 'NIL'
 NIL_RELATION = (NIL, NIL)
 
 ContextVariation = namedtuple('ContextVariation', ['words', 'internal_ctx', 'external_ctx', 'head_dep', 'line_numbers'])
@@ -81,7 +70,7 @@ def shuffled_dict(d):
     for key, value in items:
         yield key, value
 
-
+# TODO: This is a long ass method. Should I leave it like this.
 def analyze_tb(filename, use_morph, use_internal_ctx, no_nil, no_word_order,
                head_heuristic):
     relations = defaultdict(lambda: defaultdict(list))
@@ -116,7 +105,7 @@ def analyze_tb(filename, use_morph, use_internal_ctx, no_nil, no_word_order,
                         child = word2
 
                     direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
-                    context = ContextVariation((word1, word2), internal_ctx, external_ctx, head.dep, (head.line_num, child.line_num))
+                    context = ContextVariation((head, child), internal_ctx, external_ctx, head.dep, (head.line_num, child.line_num))
 
                     relations[keys][(direction, child.dep)].append(context)
 
@@ -175,6 +164,19 @@ def analyze_tb(filename, use_morph, use_internal_ctx, no_nil, no_word_order,
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise TypeError('Not enough arguments provided')
+
+    # Define constants that will be used in the script. Among them being
+    # the direction of the relation and the different command line
+    # options for heuristics. Another is if the internal context must be
+    # present for NIL to non-NIL comparisons.
+    op = OptionsProcessor()
+    op.add_option(('-h', '--head'), 'head_heuristic')
+    op.add_option(('-i', '--internal'), 'internal_ctx')
+    op.add_option(('-nn', '--notnil'), 'no_nil')
+    op.add_option(('-nw', '--nowordorder'), 'no_word_order')
+    op.add_option(('-p', '--morph'), 'morph')
+    op.add_option(('-wl', '--with-lemmas'), 'with_lemmas')
+
     op.process(sys.argv)
 
     # Find all relations in the treebank and then consolidate the ones
