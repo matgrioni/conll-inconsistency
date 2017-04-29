@@ -12,7 +12,9 @@ import itertools
 import os
 import sys
 
+import consistency
 from lib.conll import *
+from lib.options import OptionsProcessor
 
 import numpy
 
@@ -29,8 +31,10 @@ MAX_RELATION = 'max_relation'
 Context = namedtuple('Context', ['internal_ctx', 'external_ctx', 'head_dep'])
 
 # TODO: how should max_relation be handled
+# TODO: words is just temporary hopefully. Find a way to get rid of this silly
+# thing.
 Error = namedtuple('Error', ['lines', 'relationship', 'max_relation',
-                             'rel_count', 'max_rel_count'])
+                             'rel_count', 'max_rel_count', 'words'])
 
 # Finds the external context around these two words as a 2-tuple. The first item
 # of the tuple is the external lemma before the first word in the sentence. The
@@ -87,6 +91,13 @@ def _internal_context(sentence, word1, word2):
 if len(sys.argv) < 3:
     raise TypeError('Not enough arguments provided.')
 
+op = OptionsProcessor()
+op.add_option(('-h', '--head'), 'head_heuristic')
+op.add_option(('-i', '--internal'), 'internal_ctx')
+op.add_option(('-p', '--morph'), 'morph')
+op.add_option(('-wl', '--with-lemmas'), 'with_lemmas')
+
+op.process(sys.argv)
 
 filenames = os.listdir(sys.argv[2])
 if sys.argv < 4:
@@ -126,7 +137,11 @@ for random_file in random_files:
                 head = tree1.node
                 child = tree2.node
 
-                lemmas = frozenset((head.lemma, child.lemma))
+                if op.morph_present():
+                    keys = frozenset((':'.join((head.pos, head.features)),
+                                     ':'.join((child.pos, child.features))
+                else:
+                    keys = frozenset((head.lemma, child.lemma))
 
                 internal = _internal_context(sentence, head, child)
                 external = _external_context(sentence, head, child)
@@ -139,10 +154,10 @@ for random_file in random_files:
                 auto_nuclei[lemmas][context][TOTAL] += 1
 
                 # Update the MAX and MAX_RELATION as necessary.
-                updated_value = auto_nuclei[lemmas][context][relationship]
-                if updated_value > auto_nuclei[lemmas][context][MAX_VALUE]:
-                    auto_nuclei[lemmas][context][MAX_VALUE] = updated_value
-                    auto_nuclei[lemmas][context][MAX_RELATION] = relationship
+                updated_value = auto_nuclei[keys][context][relationship]
+                if updated_value > auto_nuclei[keys][context][MAX_VALUE]:
+                    auto_nuclei[keys][context][MAX_VALUE] = updated_value
+                    auto_nuclei[keys][context][MAX_RELATION] = relationship
 
 errors = defaultdict(lambda: defaultdict(list))
 
@@ -158,7 +173,11 @@ for sentence in t.genr(sys.argv[1]):
             head = tree1.node
             child = tree2.node
 
-            lemmas = frozenset((head.lemma, child.lemma))
+            if op.morph_present():
+                keys = frozenset((':'.join((head.pos, head.features)),
+                                 ':'.join((child.pos, child.features))
+            else:
+                keys = frozenset((head.lemma, child.lemma))
 
             internal = _internal_context(sentence, head, child)
             external = _external_context(sentence, head, child)
@@ -167,23 +186,34 @@ for sentence in t.genr(sys.argv[1]):
             direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
             relationship = (direction, child.dep)
 
-            max_relation = auto_nuclei[lemmas][context][MAX_RELATION]
-            max_count = auto_nuclei[lemmas][context][MAX_VALUE]
-            count = auto_nuclei[lemmas][context][relationship]
+            max_relation = auto_nuclei[keys][context][MAX_RELATION]
+            max_count = auto_nuclei[keys][context][MAX_VALUE]
+            count = auto_nuclei[keys][context][relationship]
 
-            if auto_nuclei[lemmas][context][TOTAL] > 5 and \
+            if auto_nuclei[keys][context][TOTAL] > 5 and \
                relationship != max_relation:
                 e = Error((head.line_num, child.line_num), relationship,
-                          max_relation, count, max_count)
-                errors[lemmas][context].append(e)
+                          max_relation, count, max_count, (head, child))
+                errors[keys][context].append(e)
 
-for lemmas, value in errors.items():
-    if len(lemmas) > 1:
-        print ', '.join(lemmas)
+boyd_errors = consistency.analyze_tb(sys.argv[1], op.morph_present(),
+                                     op.internal_ctx_present(),
+                                     True,
+                                     False,
+                                     op.head_heuristic_present())
+
+for keys, value in errors.items():
+    if len(keys) > 1:
+        print ', '.join(keys)
     else:
-        l, = lemmas
-        print '{}, {}'.format(l, l)
+        k, = lemmas
+        print '{}, {}'.format(k, k)
 
     for context, errors in value.items():
         for e in errors:
-            print '\t{: <25}\t{: <25}\t{: <25}\t{: <10}\t{: <10}'.format(*e)
+            in_boyd = len(boyd_errors[keys][consistency.Error(e.words, e.relationship, e.lines)]) > 0
+            if in_boyd:
+                b = 'x'
+            else:
+                b = ' '
+            print '\t{} {: <25}\t{: <25}\t{: <25}\t{: <10}\t{: <10} {}'.format(b, *e)
