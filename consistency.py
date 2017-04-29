@@ -10,6 +10,10 @@
 #
 ######################################################################
 
+# TODO: Figure out why notnil option gives different amount of context
+# results sometimes.
+# TODO: Figure out if frozenset is best way to do things.
+
 import itertools
 import random
 import sys
@@ -77,114 +81,124 @@ def shuffled_dict(d):
     for key, value in items:
         yield key, value
 
-######################################################################
-#
-# Main script
-#
-######################################################################
 
-if len(sys.argv) < 2:
-    raise TypeError('Not enough arguments provided')
-op.process(sys.argv)
+def analyze_tb(filename, use_morph, use_internal_ctx, no_nil, no_word_order,
+               head_heuristic):
+    relations = defaultdict(lambda: defaultdict(list))
+    t = TreeBank()
 
-# Find all relations in the treebank and then consolidate the ones
-# with identical types but different labels.
-# TODO: Explain why defaultdict
-filename = sys.argv[1]
-relations = defaultdict(lambda: defaultdict(list))
+    for sentence in t.genr(filename):
+        index_pairs = itertools.combinations(range(len(sentence.words)), 2)
+        for index_pair in index_pairs:
+            word1 = sentence[index_pair[0]]
+            word2 = sentence[index_pair[1]]
 
-t = TreeBank()
-t.from_filename(filename)
+            if use_morph:
+                keys = frozenset((':'.join((word1.pos, word1.features)),
+                                 ':'.join((word2.pos, word2.features))))
+            else:
+                keys = frozenset((word1.lemma, word2.lemma))
 
-for sentence in t:
-    index_pairs = itertools.combinations(range(len(sentence.words)), 2)
-    for index_pair in index_pairs:
-        word1 = sentence[index_pair[0]]
-        word2 = sentence[index_pair[1]]
+            internal_ctx = calc_internal_context(sentence, word1, word2)
+            external_ctx = calc_external_context(sentence, word1, word2)
 
-        if op.morph_present():
-            keys = frozenset((':'.join((word1.pos, word1.features)),
-                             ':'.join((word2.pos, word2.features))))
-        else:
-            keys = frozenset((word1.lemma, word2.lemma))
-        
-        internal_ctx = calc_internal_context(sentence, word1, word2)
-        external_ctx = calc_external_context(sentence, word1, word2)
+            if word1.dep_index != word2.index and word2.dep_index != word1.index:
+                if internal_ctx:
+                    context = ContextVariation((word1, word2), internal_ctx, external_ctx, NIL, (word1.line_num, word2.line_num))
+                    relations[keys][NIL_RELATION].append(context)
+            else:
+                if (use_internal_ctx and internal_ctx) or not use_internal_ctx:
+                    if word1.dep_index == word2.index:
+                        head = word2
+                        child = word1
+                    elif word2.dep_index == word1.index:
+                        head = word1
+                        child = word2
 
-        if word1.dep_index != word2.index and word2.dep_index != word1.index:
-            if internal_ctx:
-                context = ContextVariation((word1, word2), internal_ctx, external_ctx, NIL, (word1.line_num, word2.line_num))
-                relations[keys][NIL_RELATION].append(context)
-        else:
-            if (op.internal_ctx_present() and internal_ctx) or not op.internal_ctx_present():
-                if word1.dep_index == word2.index:
-                    head = word2
-                    child = word1
-                elif word2.dep_index == word1.index:
-                    head = word1
-                    child = word2
+                    direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
+                    context = ContextVariation((word1, word2), internal_ctx, external_ctx, head.dep, (head.line_num, child.line_num))
 
-                direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
-                context = ContextVariation((word1, word2), internal_ctx, external_ctx, head.dep, (word1.line_num, word2.line_num))
+                    relations[keys][(direction, child.dep)].append(context)
 
-                relations[keys][(direction, child.dep)].append(context)
+    errors = defaultdict(lambda: defaultdict(set))
+    for related_keys, key_variations in shuffled_dict(relations):
+        if not no_nil:
+            # First check for NIL errors. This is where for a pair of lemmas
+            # they appear as NIL in one situation and as related in another
+            # and they have the same internal context in both occurences.
+            nil_variations = key_variations[(NIL, NIL)]
+            for nil_variation in nil_variations:
+                for dep, variations in key_variations.items():
+                    if dep != (NIL, NIL):
+                        for variation in variations:
+                            if variation.internal_ctx == nil_variation.internal_ctx:
+                                errors[related_keys][Error(variation.words, dep, variation.line_numbers)].add('nil')
+                                errors[related_keys][Error(nil_variation.words, (NIL, NIL), nil_variation.line_numbers)].add('nil')
 
-errors = defaultdict(lambda: defaultdict(set))
-for related_keys, key_variations in shuffled_dict(relations):
-    if not op.no_nil_present():
-        # First check for NIL errors. This is where for a pair of lemmas
-        # they appear as NIL in one situation and as related in another
-        # and they have the same internal context in both occurences.
-        nil_variations = key_variations[(NIL, NIL)]
-        for nil_variation in nil_variations:
-            for dep, variations in key_variations.items():
-                if dep != (NIL, NIL):
-                    for variation in variations:
-                        if variation.internal_ctx == nil_variation.internal_ctx:
-                            errors[related_keys][Error(variation.words, dep, variation.line_numbers)].add('nil')
-                            errors[related_keys][Error(nil_variation.words, (NIL, NIL), nil_variation.line_numbers)].add('nil')
+        # Then check for errors using the non-fringe heuristic. This
+        # checks between non-NIL relations. If the external contexts
+        # of the words are the same then there is most likely an
+        # inconsistency.
+        deps = key_variations.keys()
+        for i, dep1 in enumerate(deps):
+            for dep2 in deps[i + 1:]:
+                if dep1 != (NIL, NIL) and dep2 != (NIL, NIL):
+                    # If word order does not make for an inconsistency, then check
+                    # if the relation type is the same, in which case, do not check
+                    # more for inconsistencies between these dependency types.
+                    if no_word_order and dep1[1] == dep2[1]:
+                        break
 
-    # Then check for errors using the non-fringe heuristic. This
-    # checks between non-NIL relations. If the external contexts
-    # of the words are the same then there is most likely an
-    # inconsistency.
-    deps = key_variations.keys()
-    for i, dep1 in enumerate(deps):
-        for dep2 in deps[i + 1:]:
-            if dep1 != (NIL, NIL) and dep2 != (NIL, NIL):
-                # If word order does not make for an inconsistency, then check
-                # if the relation type is the same, in which case, do not check
-                # more for inconsistencies between these dependency types.
-                if op.no_word_order_present() and dep1[1] == dep2[1]:
-                    break
-
-                for variation1 in key_variations[dep1]:
-                    for variation2 in key_variations[dep2]:
-                        # NOTE: The following if statements is for once sent-ids are more common.
-                        # if not((variation1.id > -1 and variation2.id > -1) and (variation1.id == variation2.id)):
-                        if variation1.external_ctx == variation2.external_ctx:
-                            # Lastly, is the check for head dependencies which is on top of the external context.
-                            # TODO: Shorter lines
-                            if op.head_heuristic_present():
-                                if variation1.head_dep == variation2.head_dep:
+                    for variation1 in key_variations[dep1]:
+                        for variation2 in key_variations[dep2]:
+                            # NOTE: The following if statements is for once sent-ids are more common.
+                            # if not((variation1.id > -1 and variation2.id > -1) and (variation1.id == variation2.id)):
+                            if variation1.external_ctx == variation2.external_ctx:
+                                # Lastly, is the check for head dependencies which is on top of the external context.
+                                # TODO: Shorter lines
+                                if head_heuristic:
+                                    if variation1.head_dep == variation2.head_dep:
+                                        errors[related_keys][Error(variation1.words, dep1, variation1.line_numbers)].add('context')
+                                        errors[related_keys][Error(variation2.words, dep2, variation2.line_numbers)].add('context')
+                                else:
                                     errors[related_keys][Error(variation1.words, dep1, variation1.line_numbers)].add('context')
                                     errors[related_keys][Error(variation2.words, dep2, variation2.line_numbers)].add('context')
-                            else:
-                                errors[related_keys][Error(variation1.words, dep1, variation1.line_numbers)].add('context')
-                                errors[related_keys][Error(variation2.words, dep2, variation2.line_numbers)].add('context')
 
-# Print out the error results
-for keys, key_errors in errors.items():
-    if len(keys) > 1:
-        print ', '.join(keys)
-    else:
-        k, = keys
-        print '{}, {}'.format(k, k)
-    for error, types in key_errors.items():
-        dep = ', '.join(error.dep)
-        if op.with_lemmas_present():
-            print '\t{} | {} with ({}, {}) at {}'.format(','.join(types), dep, str(error.words[0]), str(error.words[1]), error.line_numbers)
+    return errors
+
+
+######################################################################
+#
+# Main script.
+#
+######################################################################
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        raise TypeError('Not enough arguments provided')
+    op.process(sys.argv)
+
+    # Find all relations in the treebank and then consolidate the ones
+    # with identical types but different labels.
+    # TODO: Explain why defaultdict
+    filename = sys.argv[1]
+
+    errors = analyze_tb(filename, op.morph_present(), op.internal_ctx_present(),
+                        op.no_nil_present(),
+                        op.no_word_order_present(),
+                        op.head_heuristic_present())
+
+    # Print out the error results
+    for keys, key_errors in errors.items():
+        if len(keys) > 1:
+            print ', '.join(keys)
         else:
-            print '\t{} | {} at {}'.format(','.join(types), dep, error.line_numbers)
+            k, = keys
+            print '{}, {}'.format(k, k)
+        for error, types in key_errors.items():
+            dep = ', '.join(error.dep)
+            if op.with_lemmas_present():
+                print '\t{} | {} with ({}, {}) at {}'.format(','.join(types), dep, str(error.words[0]), str(error.words[1]), error.line_numbers)
+            else:
+                print '\t{} | {} at {}'.format(','.join(types), dep, error.line_numbers)
 
-    print
+        print
