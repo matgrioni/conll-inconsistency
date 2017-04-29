@@ -29,7 +29,8 @@ MAX_RELATION = 'max_relation'
 Context = namedtuple('Context', ['internal_ctx', 'external_ctx', 'head_dep'])
 
 # TODO: how should max_relation be handled
-Error = namedtuple('Error', ['lines', 'relationship', 'max_relation'])
+Error = namedtuple('Error', ['lines', 'relationship', 'max_relation',
+                             'rel_count', 'max_rel_count'])
 
 # Finds the external context around these two words as a 2-tuple. The first item
 # of the tuple is the external lemma before the first word in the sentence. The
@@ -94,25 +95,25 @@ else:
     s = int(sys.argv[3])
 random_files = numpy.random.choice(filenames, size=(s), replace=False)
 
+# Construct the nuclei relations for the automatically generated TreeBank.
+# The organization of this structure is for the first level to be a set of
+# lemmas. The second level is a Context tuple which consists of the internal
+# and external context along with the dependency relation of the head of the
+# governor of the set of lemmas. The third level is the relationship between
+# these two lemmas and the direction of the head. Note that the actual head
+# of the lemmas is not known, only that the two are related. This probably
+# does not make a difference since it actually helps to catch errors if they
+# are related to the direction of the relationship.
+#
+# There are three special fields in this
+# dict. Once the lemma and context are specified, there is also a TOTAL
+# field which is the number of total lemma pairs with such a context, a MAX
+# field which is the number of times the most frequent relationship happened
+# and MAX_RELATION which is the most frequency relationship.
+auto_nuclei = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
 for random_file in random_files:
     print random_file
-
-    # Construct the nuclei relations for the automatically generated TreeBank.
-    # The organization of this structure is for the first level to be a set of
-    # lemmas. The second level is a Context tuple which consists of the internal
-    # and external context along with the dependency relation of the head of the
-    # governor of the set of lemmas. The third level is the relationship between
-    # these two lemmas and the direction of the head. Note that the actual head
-    # of the lemmas is not known, only that the two are related. This probably
-    # does not make a difference since it actually helps to catch errors if they
-    # are related to the direction of the relationship.
-    #
-    # There are three special fields in this
-    # dict. Once the lemma and context are specified, there is also a TOTAL
-    # field which is the number of total lemma pairs with such a context, a MAX
-    # field which is the number of times the most frequent relationship happened
-    # and MAX_RELATION which is the most frequency relationship.
-    auto_nuclei = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
     # Create a generator of the sentences in the TreeBank rather than storing them
     # in memory.
@@ -145,7 +146,6 @@ for random_file in random_files:
 
 errors = defaultdict(lambda: defaultdict(list))
 
-
 # Create a generator of the sentences in the TreeBank rather than storing them
 # in memory.
 # NOTE: Is there any way to combine these two loops, seems awfully repetitive.
@@ -168,9 +168,13 @@ for sentence in t.genr(sys.argv[1]):
             relationship = (direction, child.dep)
 
             max_relation = auto_nuclei[lemmas][context][MAX_RELATION]
+            max_count = auto_nuclei[lemmas][context][MAX_VALUE]
+            count = auto_nuclei[lemmas][context][relationship]
+
             if auto_nuclei[lemmas][context][TOTAL] > 5 and \
                relationship != max_relation:
-                e = Error((head.line_num, child.line_num), relationship, max_relation)
+                e = Error((head.line_num, child.line_num), relationship,
+                          max_relation, count, max_count)
                 errors[lemmas][context].append(e)
 
 for lemmas, value in errors.items():
@@ -182,4 +186,4 @@ for lemmas, value in errors.items():
 
     for context, errors in value.items():
         for e in errors:
-            print '\t{: <25}\t{: <25}\t{: <25}'.format(*e)
+            print '\t{: <25}\t{: <25}\t{: <25}\t{: <10}\t{: <10}'.format(*e)
