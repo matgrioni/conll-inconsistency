@@ -28,7 +28,8 @@ MAX_RELATION = 'max_relation'
 # the dependency relation that the head of the pair has to its respective head.
 Context = namedtuple('Context', ['internal_ctx', 'external_ctx', 'head_dep'])
 
-Error = namedtuple('Error', ['lines', 'relationship'])
+# TODO: how should max_relation be handled
+Error = namedtuple('Error', ['lines', 'relationship', 'max_relation'])
 
 # Finds the external context around these two words as a 2-tuple. The first item
 # of the tuple is the external lemma before the first word in the sentence. The
@@ -166,13 +167,19 @@ for sentence in t.genr(sys.argv[1]):
             direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
             relationship = (direction, child.dep)
 
-            if relationship != auto_nuclei[lemmas][context][MAX_RELATION]:
-                e = Error((head.line_num, child.line_num), relationship)
+            max_relation = auto_nuclei[lemmas][context][MAX_RELATION]
+            if auto_nuclei[lemmas][context][TOTAL] > 5 and \
+               relationship != max_relation:
+                e = Error((head.line_num, child.line_num), relationship, max_relation)
                 errors[lemmas][context].append(e)
 
 for lemmas, value in errors.items():
-    print lemmas
+    if len(lemmas) > 1:
+        print ', '.join(lemmas)
+    else:
+        l, = lemmas
+        print '{}, {}'.format(l, l)
 
     for context, errors in value.items():
         for e in errors:
-            print '\t{}\t{}\t{}'.format(*e)
+            print '\t{: <25}\t{: <25}\t{: <25}'.format(*e)
