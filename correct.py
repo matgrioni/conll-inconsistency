@@ -211,9 +211,13 @@ for keys, value in errors.items():
 
     for context, errors in value.items():
         for e in errors:
-            in_boyd = len(boyd_errors[keys][consistency.Error(e.words, e.relationship, e.lines)]) > 0
-            if in_boyd:
-                b = 'x'
+            # TODO: Inefficient. Once I improve the error tuple in boyd,
+            # then this will be easier to match.
+            for b_e in boyd_errors[keys].keys():
+                if b_e.line_numbers == e.lines:
+                    b = 'x'
+                    break
             else:
                 b = ' '
-            print '\t{} {: <25}\t{: <25}\t{: <25}\t{: <10}\t{: <10} {}'.format(b, *e)
+
+            print '\t{} {: <25}\t{: <25}\t{: <25}\t{: <10}\t{: <10}'.format(b, *e)
