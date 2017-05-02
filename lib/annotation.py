@@ -11,6 +11,16 @@ class AnnotationLine(AnnotationLineInternal):
     def correct_in_corpus(self):
         return self.ann == 'y'
 
+    def __str__(self):
+        if self.ann:
+            output = '{} | {}, {} at {} {}'
+        else:
+            output = '{} | {}, {} at {}'
+
+        return output.format(self.type, self.dep[0], self.dep[1],
+                             self.line_nums, self.ann)
+
+# TODO: Rename this to be more representative of the class.
 class Annotation(object):
     # A line in the annotation file is a line that can be annotated.
     # Basically this lines that are not headers, lemma pairs or
