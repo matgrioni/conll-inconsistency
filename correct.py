@@ -94,8 +94,8 @@ if len(sys.argv) < 3:
 op = OptionsProcessor()
 op.add_option(('-h', '--head'), 'head_heuristic')
 op.add_option(('-i', '--internal'), 'internal_ctx')
+op.add_option(('-nw', '--nowordorder'), 'no_word_order')
 op.add_option(('-p', '--morph'), 'morph')
-op.add_option(('-wl', '--with-lemmas'), 'with_lemmas')
 
 op.process(sys.argv)
 
@@ -139,7 +139,7 @@ for random_file in random_files:
 
                 if op.morph_present():
                     keys = frozenset((':'.join((head.pos, head.features)),
-                                     ':'.join((child.pos, child.features))
+                                     ':'.join((child.pos, child.features))))
                 else:
                     keys = frozenset((head.lemma, child.lemma))
 
@@ -147,11 +147,14 @@ for random_file in random_files:
                 external = _external_context(sentence, head, child)
 
                 context = Context(internal, external, head.dep)
-                direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
-                relationship = (direction, child.dep)
+                if op.no_word_order_present():
+                    relationship = child.dep
+                else:
+                    direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
+                    relationship = (direction, child.dep)
 
-                auto_nuclei[lemmas][context][relationship] += 1
-                auto_nuclei[lemmas][context][TOTAL] += 1
+                auto_nuclei[keys][context][relationship] += 1
+                auto_nuclei[keys][context][TOTAL] += 1
 
                 # Update the MAX and MAX_RELATION as necessary.
                 updated_value = auto_nuclei[keys][context][relationship]
@@ -175,7 +178,7 @@ for sentence in t.genr(sys.argv[1]):
 
             if op.morph_present():
                 keys = frozenset((':'.join((head.pos, head.features)),
-                                 ':'.join((child.pos, child.features))
+                                 ':'.join((child.pos, child.features))))
             else:
                 keys = frozenset((head.lemma, child.lemma))
 
@@ -183,8 +186,11 @@ for sentence in t.genr(sys.argv[1]):
             external = _external_context(sentence, head, child)
 
             context = Context(internal, external, head.dep)
-            direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
-            relationship = (direction, child.dep)
+            if op.no_word_order_present():
+                relationship = child.dep
+            else:
+                direction = LEFT if sentence.indexes[head.index] < sentence.indexes[child.index] else RIGHT
+                relationship = (direction, child.dep)
 
             max_relation = auto_nuclei[keys][context][MAX_RELATION]
             max_count = auto_nuclei[keys][context][MAX_VALUE]
@@ -199,14 +205,14 @@ for sentence in t.genr(sys.argv[1]):
 boyd_errors = consistency.analyze_tb(sys.argv[1], op.morph_present(),
                                      op.internal_ctx_present(),
                                      True,
-                                     False,
+                                     op.no_word_order_present(),
                                      op.head_heuristic_present())
 
 for keys, value in errors.items():
     if len(keys) > 1:
         print ', '.join(keys)
     else:
-        k, = lemmas
+        k, = keys
         print '{}, {}'.format(k, k)
 
     for context, errors in value.items():
@@ -219,5 +225,4 @@ for keys, value in errors.items():
                     break
             else:
                 b = ' '
-
             print '\t{} {: <25}\t{: <25}\t{: <25}\t{: <10}\t{: <10}'.format(b, *e)
