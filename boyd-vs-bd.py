@@ -42,6 +42,6 @@ for lemmas, errors in boyd_output.annotations.items():
             count += 1
             print('\t{}'.format(error))
 
-print(count)
-print(boyd_output.size)
-print(count / boyd_output.size)
+print('{} not in both'.format(count))
+print('{} in boyd'.format(boyd_output.size))
+print('{}% in boyd and not bd'.format(count / boyd_output.size))

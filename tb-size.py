@@ -27,5 +27,5 @@ for fn in filenames:
         s_count += 1
         t_count += len(sentence.words)
 
-print(s_count)
-print(t_count)
+print('{} sentences'.format(s_count))
+print('{} tokens'.format(t_count))
