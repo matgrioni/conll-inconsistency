@@ -96,6 +96,7 @@ op.add_option(('-h', '--head'), 'head_heuristic')
 op.add_option(('-i', '--internal'), 'internal_ctx')
 op.add_option(('-nw', '--nowordorder'), 'no_word_order')
 op.add_option(('-p', '--morph'), 'morph')
+op.add_option(('-w', '--words'), 'words')
 
 op.process(sys.argv)
 
@@ -140,6 +141,8 @@ for random_file in random_files:
                 if op.morph_present():
                     keys = frozenset((':'.join((head.pos, head.features)),
                                      ':'.join((child.pos, child.features))))
+                elif op.words_present():
+                    keys = frozenset((head.phon, child.phon))
                 else:
                     keys = frozenset((head.lemma, child.lemma))
 
@@ -179,6 +182,8 @@ for sentence in t.genr(sys.argv[1]):
             if op.morph_present():
                 keys = frozenset((':'.join((head.pos, head.features)),
                                  ':'.join((child.pos, child.features))))
+            elif op.words_present():
+                keys = frozenset((head.phon, child.phon))
             else:
                 keys = frozenset((head.lemma, child.lemma))
 
@@ -203,6 +208,7 @@ for sentence in t.genr(sys.argv[1]):
                 errors[keys][context].append(e)
 
 boyd_errors = consistency.analyze_tb(sys.argv[1], op.morph_present(),
+                                     op.words_present(),
                                      op.internal_ctx_present(),
                                      True,
                                      op.no_word_order_present(),

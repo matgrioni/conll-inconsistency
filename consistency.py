@@ -71,8 +71,8 @@ def shuffled_dict(d):
         yield key, value
 
 # TODO: This is a long ass method. Should I leave it like this.
-def analyze_tb(filename, use_morph, use_internal_ctx, no_nil, no_word_order,
-               head_heuristic):
+def analyze_tb(filename, use_morph, use_words, use_internal_ctx, no_nil,
+               no_word_order, head_heuristic):
     relations = defaultdict(lambda: defaultdict(list))
     t = TreeBank()
 
@@ -85,6 +85,8 @@ def analyze_tb(filename, use_morph, use_internal_ctx, no_nil, no_word_order,
             if use_morph:
                 keys = frozenset((':'.join((word1.pos, word1.features)),
                                  ':'.join((word2.pos, word2.features))))
+            elif use_words:
+                keys = frozenset((word1.phon, word2.phon))
             else:
                 keys = frozenset((word1.lemma, word2.lemma))
 
@@ -175,6 +177,7 @@ if __name__ == "__main__":
     op.add_option(('-nn', '--notnil'), 'no_nil')
     op.add_option(('-nw', '--nowordorder'), 'no_word_order')
     op.add_option(('-p', '--morph'), 'morph')
+    op.add_option(('-w', '--words'), 'words')
     op.add_option(('-wl', '--with-lemmas'), 'with_lemmas')
 
     op.process(sys.argv)
@@ -184,7 +187,8 @@ if __name__ == "__main__":
     # TODO: Explain why defaultdict
     filename = sys.argv[1]
 
-    errors = analyze_tb(filename, op.morph_present(), op.internal_ctx_present(),
+    errors = analyze_tb(filename, op.morph_present(), op.words_present(),
+                        op.internal_ctx_present(),
                         op.no_nil_present(),
                         op.no_word_order_present(),
                         op.head_heuristic_present())
