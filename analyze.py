@@ -32,9 +32,10 @@ class VariationCount(VariationCountInternal):
     def percent_incorrect(self):
         return self.incorrect / self.annotated_count() * 100
 
-DEP_FLAG_ARG = ('-dep', '-d')
-LEMMA_FLAG_ARG = ('-lemma', '-l')
-FREQ_FLAG_ARG = ('-frequency', '-f')
+DEP_FLAG_ARG = ('--dep', '-d')
+LEMMA_FLAG_ARG = ('--lemma', '-l')
+FREQ_FLAG_ARG = ('--frequency', '-f')
+ALL_OCC_ARG = ('--all', '-a')
 
 if len(sys.argv) < 2:
     raise TypeError('Not enough arguments provided')
@@ -42,6 +43,7 @@ if len(sys.argv) < 2:
 dep_flag = reduce(lambda acc, arg: acc or arg in DEP_FLAG_ARG, sys.argv, False)
 lemma_flag = reduce(lambda acc, arg: acc or arg in LEMMA_FLAG_ARG, sys.argv, False)
 freq_flag = reduce(lambda acc, arg: acc or arg in FREQ_FLAG_ARG, sys.argv, False)
+all_occ_flag = reduce(lambda acc, arg: acc or arg in ALL_OCC_ARG, sys.argv, False)
 
 total_count = 0
 annotated_count = 0
@@ -68,7 +70,31 @@ for lemma_pair, occurrences in ann.annotations.items():
 
     num_annotated = 0
     for occ in occurrences:
-        if occ.is_annotated():
+        if not all_occ_flag:
+            if occ.is_annotated():
+                num_annotated += 1
+
+                if not counted_lemma:
+                    counted_lemma = True
+                    annotated_lemmas += 1
+
+                total_tokens += 1
+
+                if occ.correct_in_corpus():
+                    by_dep[occ.dep].correct += 1
+                    by_lemma[lemma_pair].correct += 1
+                else:
+                    inconsistent_tokens += 1
+                    if not counted_lemma_incorrect:
+                        counted_lemma_incorrect = True
+                        inconsistent_lemmas += 1
+
+                    by_dep[occ.dep].incorrect += 1
+                    by_lemma[lemma_pair].incorrect += 1
+            else:
+                by_dep[occ.dep].unmarked += 1
+                by_lemma[lemma_pair].unmarked += 1
+        else:
             num_annotated += 1
 
             if not counted_lemma:
@@ -88,9 +114,6 @@ for lemma_pair, occurrences in ann.annotations.items():
 
                 by_dep[occ.dep].incorrect += 1
                 by_lemma[lemma_pair].incorrect += 1
-        else:
-            by_dep[occ.dep].unmarked += 1
-            by_lemma[lemma_pair].unmarked += 1
 
     freqs[num_annotated] += 1
 
@@ -127,9 +150,7 @@ if lemma_flag:
 if freq_flag:
     print 'Data analysis by freq'
     print 'Format is as follows:'
-    print 'NUMBER ANNOTATED\tFREQUENCY'
-
-    print
+    print 'NUMBER\tFREQUENCY'
 
     for num, freq in freqs.items():
         print '{}\t{}'.format(num, freq)
@@ -143,7 +164,7 @@ if total_tokens > 0:
     print '{} / {} = {}%'.format(total_tokens - inconsistent_tokens, total_tokens, (total_tokens - inconsistent_tokens) / total_tokens * 100)
 
     print 'Percent of all occurences that were incorrect'
-    print '{} / {} = {}%'.format(inconsistent_tokens, total_tokens, inconsistent_tokens / total_tokens)
+    print '{} / {} = {}%'.format(inconsistent_tokens, total_tokens, inconsistent_tokens / total_tokens * 100)
 
     print 'Percent of all lemma pairs with at least one incorrect occurrence'
     print '{} / {} = {}%'.format(inconsistent_lemmas, annotated_lemmas, inconsistent_lemmas / annotated_lemmas * 100)
