@@ -21,6 +21,7 @@ here=$(pwd)
 while IFS= read -r dir
 do
     cd $dir
+    echo $dir
     trainfn=$(ls *.conllu | tail -1)
     id="${trainfn%%-ud-train.conllu}"
     cat *.conllu > __tmp.conllu
