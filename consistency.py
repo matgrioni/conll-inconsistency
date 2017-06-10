@@ -64,6 +64,18 @@ def calc_internal_context(sentence, word1, word2):
 
     return map(lambda word: word.lemma, trimmed)
 
+def valid_tree(filename):
+    size = 0
+    incomplete = 0
+
+    t = TreeBank()
+    for sentence in t.genr(filename):
+        size += 1
+        if sentence[0].phon == '_':
+            incomplete += 1
+
+    return (incomplete / float(size)) < 0.5
+
 def shuffled_dict(d):
     items = d.items()
     random.shuffle(items)
@@ -187,24 +199,25 @@ if __name__ == "__main__":
     # TODO: Explain why defaultdict
     filename = sys.argv[1]
 
-    errors = analyze_tb(filename, op.morph_present(), op.words_present(),
-                        op.internal_ctx_present(),
-                        op.no_nil_present(),
-                        op.no_word_order_present(),
-                        op.head_heuristic_present())
+    if valid_tree(filename):
+        errors = analyze_tb(filename, op.morph_present(), op.words_present(),
+                            op.internal_ctx_present(),
+                            op.no_nil_present(),
+                            op.no_word_order_present(),
+                            op.head_heuristic_present())
 
-    # Print out the error results
-    for keys, key_errors in errors.items():
-        if len(keys) > 1:
-            print ', '.join(keys)
-        else:
-            k, = keys
-            print '{}, {}'.format(k, k)
-        for error, types in key_errors.items():
-            dep = ', '.join(error.dep)
-            if op.with_lemmas_present():
-                print '\t{} | {} with ({}, {}) at {}'.format(','.join(types), dep, str(error.words[0]), str(error.words[1]), error.line_numbers)
+        # Print out the error results
+        for keys, key_errors in errors.items():
+            if len(keys) > 1:
+                print ', '.join(keys)
             else:
-                print '\t{} | {} at {}'.format(','.join(types), dep, error.line_numbers)
+                k, = keys
+                print '{}, {}'.format(k, k)
+            for error, types in key_errors.items():
+                dep = ', '.join(error.dep)
+                if op.with_lemmas_present():
+                    print '\t{} | {} with ({}, {}) at {}'.format(','.join(types), dep, str(error.words[0]), str(error.words[1]), error.line_numbers)
+                else:
+                    print '\t{} | {} at {}'.format(','.join(types), dep, error.line_numbers)
 
-        print
+            print
