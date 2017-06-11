@@ -71,10 +71,13 @@ def valid_tree(filename):
     t = TreeBank()
     for sentence in t.genr(filename):
         size += 1
-        if sentence[0].phon == '_':
+        if sentence[0].phon == '_' or sentence[0].lemma == '_':
             incomplete += 1
 
-    return (incomplete / float(size)) < 0.5
+    if size > 0:
+        return (incomplete / float(size)) < 0.5
+    else:
+        return True
 
 def shuffled_dict(d):
     items = d.items()

@@ -23,7 +23,7 @@ do
     cd $dir
     echo $dir
     trainfn=$(ls *.conllu | tail -1)
-    id="${trainfn%%-ud-train.conllu}"
+    id="${trainfn%%-ud-train*.conllu}"
     cat *.conllu > __tmp.conllu
 
     python $here/$3/consistency.py __tmp.conllu --notnil > $here/$2/$id.txt
