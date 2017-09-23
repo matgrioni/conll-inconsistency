@@ -1,4 +1,8 @@
-This is a personal repository of tools for interfacing with treebanks as a part of the Universal Dependencies (UD) project.
+This is a personal repository of tools for interfacing with treebanks as a part of the Universal Dependencies (UD) project. These tools were used in the DepLing 2017 paper, Assessing the Annotation Consistency of the Universal Dependencies Corpora. I think if you use this repo as a part of some publication you should cite the DepLing paper but I'm not entirely sure. I'm somewhat new to this. In either case I will leave the citation here.
+
+```
+Marie-Catherine de Marneffe, Matias Grioni, Jenna Kanerva and Filip Giner. Assessing the Annotation Consistency of the Universal Dependencies Corpora. In Proceedings of the Fourth International Conference on Dependency Linguistics, Depling 2017, pp. 108-115, 2017.
+```
 
 ## Consistency
 
