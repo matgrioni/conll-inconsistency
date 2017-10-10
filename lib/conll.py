@@ -82,7 +82,7 @@ class Sentence(object):
     COMMENT_MARKER = '#'
     SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: ([a-z]{2}-ud-(dev|train|test)_\d+)'
     CONTRACTION_REGEX = '^\d+-\d+'
-    SENTENCE_TEXT_MARKER = ':'
+    SENTENCE_TEXT_MARKER = '='
 
     def __init__(self, annotation, line_num=-1):
         self.line_num = line_num
