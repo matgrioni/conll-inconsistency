@@ -80,7 +80,7 @@ class TreeBank(object):
 
 class Sentence(object):
     COMMENT_MARKER = '#'
-    SENTENCE_ID_REGEX = COMMENT_MARKER + ' sentid: ([a-z]{2}-ud-(dev|train|test)_\d+)'
+    SENTENCE_ID_REGEX = COMMENT_MARKER + ' sent_id = ([a-z]{2}-ud-(dev|train|test)_\d+)'
     CONTRACTION_REGEX = '^\d+-\d+'
     SENTENCE_TEXT_MARKER = '='
 
